@@ -1,6 +1,6 @@
 # CLAUDE.md – adapting this diagram to someone else's homelab
 
-You are helping a user turn **their** homelab into a diagram like `docs/example.png`. The repo ships with the original author's lab (`sites/origin/`) and a trimmed single-segment example (`sites/chunbonanyuan/`). Your job: find out what their lab looks like, write `sites/<name>/site.yaml`, adapt the layout in `layouts/`, and iterate on the render with them until they are happy.
+You are helping a user turn **their** homelab into a diagram like `docs/example.png`. The repo ships with the original author's lab (`sites/origin/`) and a trimmed single-segment example (`sites/cbny/`). Your job: find out what their lab looks like, write `sites/<name>/site.yaml`, adapt the layout in `layouts/`, and iterate on the render with them until they are happy.
 
 Start by telling the user briefly how this works (interview → site.yaml → layout → render/feedback rounds), then begin the interview. Don't ask everything at once.
 
@@ -53,7 +53,7 @@ Useful read-only commands if you have access (ask first): Proxmox `pct list`, `q
 
 ## The work loop
 
-1. `mkdir sites/<name>` and copy `sites/origin/site.yaml` (full schema) or `sites/chunbonanyuan/site.yaml` (flat home network) as a starting point. Write their lab into `sites/<name>/site.yaml` (keep the schema; extend it when needed and teach the layout the new fields).
+1. `mkdir sites/<name>` and copy `sites/origin/site.yaml` (full schema) or `sites/cbny/site.yaml` (flat home network) as a starting point. Write their lab into `sites/<name>/site.yaml` (keep the schema; extend it when needed and teach the layout the new fields).
 2. Adapt the layout: `layouts/full.py` for a lab with a switch and a hypervisor, `layouts/home.py` for a flat network. Decide which panels exist, adjust the hardcoded positions above, remove sections they don't need.
 3. `python3 fetch_icons.py` (add new icons to `ICON_MAP` first: local name → name in [dashboard-icons](https://github.com/homarr-labs/dashboard-icons); dark icons need a `-light` variant or an entry in `RECOLOR`).
 4. `python3 build.py <name>`, then **look at `sites/<name>/out/<name>.png` yourself** before showing it. Zoom into busy areas: `magick sites/<name>/out/<name>.png -crop 1400x600+X+Y +repage -resize 70% /tmp/crop.png` (X/Y in PNG pixels = SVG coordinates × 1.6). Look for overlapping text, cables crossing cards, text running out of boxes, empty gaps.

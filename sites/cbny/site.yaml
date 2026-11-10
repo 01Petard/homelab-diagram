@@ -2,7 +2,7 @@
 # build.py reads it; which renderer runs is decided by `layout` below, and the
 # positions of the boxes are hand-placed in layouts/home.py.
 # Everything here is either measured on this Mac (read-only) or explicitly marked as unknown.
-# This is the flat in 春波南苑 (romanised for the render) — the network as it is today.
+# This is the flat in 春波南苑 (cbny) — the network as it is today.
 
 layout: home                        # home = trimmed single-segment layout (layouts/home.py)
 

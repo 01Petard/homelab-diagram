@@ -42,9 +42,9 @@ One directory per place, so a second household never gets mixed into the first:
 
 ```
 sites/
-  chunbonanyuan/          the flat I live in now — trimmed layout
+  cbny/                   the flat I live in now (春波南苑) — trimmed layout
     site.yaml             content: router, clients, tailnet, network table
-    out/                  chunbonanyuan.svg + .png (git-ignored)
+    out/                  cbny.svg + .png (git-ignored)
   origin/                 the upstream lab, kept as a sample of the full schema
     site.yaml             layout: full
     out/                  origin.svg + .png
@@ -73,8 +73,8 @@ uv sync                        # once: create .venv, install PyYAML + Pillow
 uv run fetch_icons.py          # downloads the service icons into icons/ (once)
 
 uv run build.py                # list the sites and what has been rendered so far
-uv run build.py chunbonanyuan  # → sites/chunbonanyuan/out/chunbonanyuan.svg + .png
-uv run build.py chunbonanyuan --unredacted   # same, with the real domain / SSIDs
+uv run build.py cbny           # → sites/cbny/out/cbny.svg + .png
+uv run build.py cbny --unredacted            # same, with the real domain / SSIDs
 uv run build.py --all          # every site
 ```
 
@@ -84,7 +84,7 @@ The service icons are **not** in this repo, `fetch_icons.py` downloads them from
 
 ## Making it your own
 
-1. `mkdir sites/<your-place>` and copy `sites/origin/site.yaml` (full schema) or `sites/chunbonanyuan/site.yaml` (flat home network) into it. Texts, IPs, ports, VLAN colors and the container groups come from that file.
+1. `mkdir sites/<your-place>` and copy `sites/origin/site.yaml` (full schema) or `sites/cbny/site.yaml` (flat home network) into it. Texts, IPs, ports, VLAN colors and the container groups come from that file.
 2. Look at the render. Things that don't fit are layout: in `layouts/home.py` the chain from the cloud down to the device row is placed by `RY`, `LAN_X`, `DY`; in `layouts/full.py` the top part (cloud, ISP router, firewall, switch, device row) and the column split inside the server card are coordinates there too (search for `fy, fh`, `ox, oy`, `bx, by`, `DY`, `MAD = …`).
 3. New icons: drop an SVG into `icons/` and use its file name in the `site.yaml`.
 
