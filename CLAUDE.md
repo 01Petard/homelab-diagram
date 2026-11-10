@@ -1,15 +1,16 @@
 # CLAUDE.md – adapting this diagram to someone else's homelab
 
-You are helping a user turn **their** homelab into a diagram like `docs/example.png`. The repo ships with the original author's lab (`sites/origin/`) and a trimmed single-segment example (`sites/cbny/`). Your job: find out what their lab looks like, write `sites/<name>/site.yaml`, adapt the layout in `layouts/`, and iterate on the render with them until they are happy.
+You are helping a user turn **their** homelab into a diagram like `docs/example.png`. The repo ships with the original author's lab (`sites/origin/`) and a trimmed single-segment example (`sites/cbny/`). Your job: find out what their lab looks like, write `sites/<name>/site.yaml` and the matching `sites/<name>/layout.py`, and iterate on the render with them until they are happy.
 
 Start by telling the user briefly how this works (interview → site.yaml → layout → render/feedback rounds), then begin the interview. Don't ask everything at once.
 
 ## How the repo works
 
-- One **site** = one directory under `sites/`, holding `site.yaml` (all content) and `out/` (its renders). `layout: home | full` in `site.yaml` picks the renderer.
+- One **site** = one directory under `sites/`, holding `site.yaml` (all content), `layout.py` (a complete standalone script: coordinates, drawing, PNG export) and `out/` (its renders). Copying a site directory gives you both files to start from.
 - `site.yaml` – all content: VLANs, devices, switch ports, port forwards, server hardware, VMs/containers, storage pools, the media pipeline.
-- `build.py` – entry point: reads the site's `site.yaml` and runs the renderer it names. `python3 build.py` alone lists the sites.
-- `layouts/full.py` – the panorama layout, reads `sites/origin/site.yaml` as its schema reference. `layouts/home.py` – the trimmed layout for a flat home network. Both draw an SVG with absolute coordinates (logical canvas `W = 2400`, height `H`), embed icons as base64, convert to PNG with `rsvg-convert -z 1.6` (so PNG pixels = SVG units × 1.6).
+- `layout.py` – self-contained: it locates its own directory, reads the `site.yaml` next to it, draws an SVG with absolute coordinates (logical canvas `W = 2400`, height `H`), embeds icons as base64 and converts to PNG with `rsvg-convert -z 1.6` (so PNG pixels = SVG units × 1.6). Nothing is imported from the other sites; shared code would be duplicated, and that is deliberate.
+- `build.py` – entry point that finds the sites and runs their `layout.py`; `python3 build.py` alone lists them. `python3 sites/<name>/layout.py` renders one directly.
+- `sites/origin/layout.py` – the panorama layout, and the schema reference for every field. `sites/cbny/layout.py` – the trimmed layout for a flat home network.
 - `fetch_icons.py` – downloads service icons into `icons/` (dashboard-icons). Own glyphs `icons/glyph-*.svg` are in the repo.
 - Output: `sites/<name>/out/<name>.png` (redacted, safe to post) and `<name>-unredacted.png` (`--unredacted`).
 
@@ -53,8 +54,8 @@ Useful read-only commands if you have access (ask first): Proxmox `pct list`, `q
 
 ## The work loop
 
-1. `mkdir sites/<name>` and copy `sites/origin/site.yaml` (full schema) or `sites/cbny/site.yaml` (flat home network) as a starting point. Write their lab into `sites/<name>/site.yaml` (keep the schema; extend it when needed and teach the layout the new fields).
-2. Adapt the layout: `layouts/full.py` for a lab with a switch and a hypervisor, `layouts/home.py` for a flat network. Decide which panels exist, adjust the hardcoded positions above, remove sections they don't need.
+1. `cp -r sites/origin sites/<name>` (full panorama) or `cp -r sites/cbny sites/<name>` (flat home network), then write their lab into `sites/<name>/site.yaml` (keep the schema; extend it when needed and teach the layout the new fields).
+2. Adapt `sites/<name>/layout.py`: decide which panels exist, adjust the hardcoded positions above, remove sections they don't need. It is a standalone script — keep it that way rather than importing helpers from another site.
 3. `python3 fetch_icons.py` (add new icons to `ICON_MAP` first: local name → name in [dashboard-icons](https://github.com/homarr-labs/dashboard-icons); dark icons need a `-light` variant or an entry in `RECOLOR`).
 4. `python3 build.py <name>`, then **look at `sites/<name>/out/<name>.png` yourself** before showing it. Zoom into busy areas: `magick sites/<name>/out/<name>.png -crop 1400x600+X+Y +repage -resize 70% /tmp/crop.png` (X/Y in PNG pixels = SVG coordinates × 1.6). Look for overlapping text, cables crossing cards, text running out of boxes, empty gaps.
 5. Show the user, take feedback, change, re-render. Expect many small rounds, that's normal.

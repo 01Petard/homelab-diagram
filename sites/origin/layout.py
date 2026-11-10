@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Render the full homelab panorama (r/homelab style) for one site.
+"""The diagram of the upstream lab (origin): the full r/homelab panorama.
 
-Called by build.py as: python3 layouts/full.py <site-dir> [--unredacted]
-                        → <site-dir>/out/<site>.svg + .png
-This is the upstream layout, unchanged: an edge chain, a switch port row, a Proxmox
-card with hardware, DMZ containers, storage pools and the media pipeline. Use it for
-a lab with a switch, a hypervisor and a NAS; layouts/home.py is the trimmed version
-for a flat home network. Both read <site-dir>/site.yaml, so the two layouts are two
-shapes for the same kind of content — see sites/example-full for the full schema.
+    python3 sites/origin/layout.py [--unredacted]    → out/origin.svg + .png
+
+The layout that shipped with the repo: edge chain (ONT → firewall → core switch),
+the switch port row, the Proxmox card with its hardware, the DMZ containers, the
+TrueNAS pools and the media pipeline. Content comes from site.yaml in this
+directory, the positions are hand-placed below. Self-contained apart from the icons
+and the fonts; use it as the starting point for a lab of your own.
 """
 import base64
 import html
@@ -17,11 +17,8 @@ import sys
 
 import yaml
 
-if len(sys.argv) < 2:
-    sys.exit(f"usage: python3 {__file__} <site-dir> [--unredacted]   (or: python3 build.py <site>)")
-
-ROOT = pathlib.Path(__file__).resolve().parent.parent      # repo root: shared icons live there
-SITE = pathlib.Path(sys.argv[1]).resolve()                 # sites/<name>, passed in by build.py
+SITE = pathlib.Path(__file__).resolve().parent          # this directory: site.yaml and out/ live here
+ROOT = SITE.parent.parent                               # repo root: the shared icons are there
 INV = yaml.safe_load((SITE / "site.yaml").read_text())
 ICONS = ROOT / "icons"
 OUT = SITE / "out"

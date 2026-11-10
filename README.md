@@ -5,7 +5,7 @@ The script behind the network diagram of my homelab that I posted on r/homelab. 
 ![Example output](docs/example.png)
 
 > [!IMPORTANT]
-> **This is not a general tool.** The *content* comes from `site.yaml`, but the *layout* (where every box, port and cable goes) is hand-placed in `layouts/` for exactly one network. If you want to use it for yours, expect to move coordinates around in the code. Think of it as a starting point, not a finished product.
+> **This is not a general tool.** The *content* comes from `site.yaml`, but the *layout* (where every box, port and cable goes) is hand-placed in that site's `layout.py` for exactly one network. If you want to use it for yours, expect to move coordinates around in the code. Think of it as a starting point, not a finished product.
 
 > [!NOTE]
 > **The code was written by AI.** I built this together with Claude (Anthropic) in Claude Code. I described what I wanted and gave feedback on every render, Claude wrote and changed the code. A few example prompts are at the end of this README.
@@ -22,8 +22,9 @@ The script behind the network diagram of my homelab that I posted on r/homelab. 
 
 ## How it works
 
-- Each **site** is a directory under `sites/` with a `site.yaml` and an `out/` for its renders. `site.yaml` holds everything the picture shows: VLANs, devices, switch ports, port forwards, hardware, containers, pools.
-- `build.py` is the entry point: it reads the site's `site.yaml`, picks the renderer named by the `layout:` key and runs it. A renderer (`layouts/home.py`, `layouts/full.py`) draws the diagram as SVG with hand-placed coordinates, embeds the icons and converts it to PNG with `rsvg-convert`. Text widths for a few labels are measured with Pillow from the real font, so tabs and badges fit their text.
+- Each **site** is a directory under `sites/` holding everything about one place: `site.yaml` (everything the picture shows: VLANs, devices, switch ports, port forwards, hardware, containers, pools), `layout.py` (a complete standalone script: where every box and cable goes, the drawing itself, the PNG export) and `out/` (the pictures).
+- Each `layout.py` is self-contained — it knows its own directory and imports nothing from the other sites. Changing one site cannot break another, which is the point: a layout is hand-placed for exactly one network.
+- `build.py` only finds the sites and runs them; `python3 sites/<name>/layout.py` does the same thing directly.
 - **Redaction:** by default the real domain is replaced with `redacted.com` and SSIDs get generic names, so the PNG can be posted publicly. `--unredacted` renders a private version with the real values from `site.yaml`.
 
 ## Requirements
@@ -36,31 +37,32 @@ On Arch/CachyOS: `pacman -S python-yaml python-pillow librsvg ttf-fira-sans ttf-
 On Debian/Ubuntu: `apt install python3-yaml python3-pil librsvg2-bin fonts-firacode` plus Fira Sans
 On macOS: `brew install librsvg`, then install the Fira fonts from [mozilla/Fira](https://github.com/mozilla/Fira) (e.g. `brew install --cask font-fira-code font-fira-sans`, if your Homebrew has them).
 
-## Sites
+## Structure
 
-One directory per place, so a second household never gets mixed into the first:
+One directory per place, and everything about that place inside it:
 
 ```
 sites/
-  cbny/                   the flat I live in now (春波南苑) — trimmed layout
+  cbny/                   the flat I live in now (春波南苑)
     site.yaml             content: router, clients, tailnet, network table
+    layout.py             self-contained script: coordinates + drawing + PNG export
     out/                  cbny.svg + .png (git-ignored)
-  origin/                 the upstream lab, kept as a sample of the full schema
-    site.yaml             layout: full
+  origin/                 the upstream lab, kept as the sample of the full schema
+    site.yaml             content: 7 VLANs, switch ports, Proxmox, DMZ, pools
+    layout.py             self-contained script: the full panorama
     out/                  origin.svg + .png
-layouts/                  the renderers, shared by every site
-  home.py                 trimmed: Internet → ONT → router → the clients that are really there
-  full.py                 the upstream panorama: switch port row, Proxmox card, DMZ, pools, pipeline
-build.py                  entry point: picks the renderer from site.yaml's `layout:`
-icons/, fetch_icons.py    shared assets
+build.py                  runs one site, or lists them
+icons/, fetch_icons.py    the shared bits: third-party logos, downloaded once
 ```
 
-`layout: home` or `layout: full` in `site.yaml` is the only switch — the content schema is the same, the shape of the picture is not. Anything in a `site.yaml` that is not verified is labelled as unknown rather than invented.
+Each `sites/<name>/layout.py` is a full program, not a plugin: it reads the `site.yaml` next to it, draws, and writes `out/`. Nothing is shared between sites except the icons and the fonts, so you can rewrite one household's diagram without thinking about the other, and a copied directory still works on its own.
 
-Adding a place takes a directory and a file, no code:
+Content and layout are separate *files* because they fail differently — a wrong fact is a `site.yaml` edit, a box that does not fit is a `layout.py` edit — but they are never separate *directories*. Anything in a `site.yaml` that is not verified is labelled as unknown rather than invented.
+
+Adding a place copies a directory, so you also get a layout to start from:
 
 ```bash
-mkdir sites/mylab && cp sites/origin/site.yaml sites/mylab/site.yaml   # then edit it
+cp -r sites/origin sites/mylab      # panorama + example content, then edit both files
 uv run build.py mylab
 ```
 
@@ -84,8 +86,8 @@ The service icons are **not** in this repo, `fetch_icons.py` downloads them from
 
 ## Making it your own
 
-1. `mkdir sites/<your-place>` and copy `sites/origin/site.yaml` (full schema) or `sites/cbny/site.yaml` (flat home network) into it. Texts, IPs, ports, VLAN colors and the container groups come from that file.
-2. Look at the render. Things that don't fit are layout: in `layouts/home.py` the chain from the cloud down to the device row is placed by `RY`, `LAN_X`, `DY`; in `layouts/full.py` the top part (cloud, ISP router, firewall, switch, device row) and the column split inside the server card are coordinates there too (search for `fy, fh`, `ox, oy`, `bx, by`, `DY`, `MAD = …`).
+1. `cp -r sites/origin sites/<your-place>` (full panorama) or `cp -r sites/cbny sites/<your-place>` (flat home network), then edit the `site.yaml` in it. Texts, IPs, ports, VLAN colors and the container groups come from that file.
+2. Look at the render. Whatever doesn't fit is the `layout.py` next to it: in the flat layout the chain from the cloud down to the device row is placed by `RY`, `LAN_X`, `DY`; in the full one the top part (cloud, ISP router, firewall, switch, device row) and the column split inside the server card are coordinates there too (search for `fy, fh`, `ox, oy`, `bx, by`, `DY`, `MAD = …`).
 3. New icons: drop an SVG into `icons/` and use its file name in the `site.yaml`.
 
 ## Using it with Claude Code

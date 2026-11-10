@@ -1,12 +1,11 @@
 # The original: this is the upstream author's lab (u/goblinmine) as it ships with
-# the repo, kept as a sample of the full schema. `layout: full` renders it with
-# layouts/full.py. Copy this directory when a site of yours grows a switch, a
-# hypervisor and a NAS, then replace the values with your own.
-# One site = one directory: this file is the content, out/ gets the renders.
+# the repo, kept as the sample of the full content schema. layout.py in this
+# directory is the matching full layout. Copy the whole directory when a site of
+# yours grows a switch, a hypervisor and a NAS, then replace the values with your own.
+# One site = one directory: this file is the content, layout.py holds the coordinates,
+# out/ gets the renders.
 # Hostnames: public apps (behind the reverse proxy) are shown as <host>.<domain> in blue,
 # everything else as <name>.internal in its VLAN color.
-
-layout: full                        # full = lab panorama (layouts/full.py)
 
 meta:
   title: "My Homelab"

@@ -36,7 +36,7 @@ ICON_MAP = {
     "signal": "signal", "sonarr": "sonarr", "stirling": "stirling-pdf", "tandoor": "tandoor-recipes",
     "traefik": "traefik", "truenas": "truenas-scale", "unifi": "unifi", "whatsapp": "whatsapp",
     "windows": "microsoft-windows", "wireguard": "wireguard", "zigbee2mqtt": "zigbee2mqtt",
-    # used by the trimmed home-network layout (layouts/home.py)
+    # used by the flat home-network layout (sites/cbny/layout.py)
     "apple": "apple", "nintendo-switch": "nintendo-switch", "tailscale": "tailscale", "tp-link": "tp-link",
 }
 

@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
-"""Render a small home-network diagram for one site.
+"""The diagram of the flat in 春波南苑 (cbny): a single-segment home network.
 
-Called by build.py as: python3 layouts/home.py <site-dir> [--unredacted]
-                        → <site-dir>/out/<site>.svg + .png
-                           (--unredacted → <site-dir>/out/<site>-unredacted.*)
-This is a trimmed layout for a flat single-segment network: Internet → ONT → router
-→ the devices that are actually on it. Content comes from <site-dir>/site.yaml, the
-positions are hand-placed below (this file is a fork of Goblinmine/homelab-diagram
-for one specific household network, see README.md).
+    python3 sites/cbny/layout.py [--unredacted]    → out/cbny.svg + .png
+
+Internet → ONT → router → the three clients that are really there, plus the tailnet.
+Content comes from site.yaml in this directory, the positions are hand-placed below.
+Self-contained: nothing outside this directory except the icons and the fonts is
+needed to draw it, so it can be edited without touching any other site.
 """
 import base64
 import html
@@ -17,11 +16,8 @@ import sys
 
 import yaml
 
-if len(sys.argv) < 2:
-    sys.exit(f"usage: python3 {__file__} <site-dir> [--unredacted]   (or: python3 build.py <site>)")
-
-ROOT = pathlib.Path(__file__).resolve().parent.parent      # repo root: shared icons live there
-SITE = pathlib.Path(sys.argv[1]).resolve()                 # sites/<name>, passed in by build.py
+SITE = pathlib.Path(__file__).resolve().parent          # this directory: site.yaml and out/ live here
+ROOT = SITE.parent.parent                               # repo root: the shared icons are there
 INV = yaml.safe_load((SITE / "site.yaml").read_text())
 ICONS = ROOT / "icons"
 OUT = SITE / "out"

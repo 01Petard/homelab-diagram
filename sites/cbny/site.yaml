@@ -1,10 +1,7 @@
-# One site = one directory: this file is the content, out/ gets the renders.
-# build.py reads it; which renderer runs is decided by `layout` below, and the
-# positions of the boxes are hand-placed in layouts/home.py.
+# One site = one directory: this file is the content, layout.py next to it holds the
+# hand-placed coordinates, out/ gets the renders.
 # Everything here is either measured on this Mac (read-only) or explicitly marked as unknown.
 # This is the flat in 春波南苑 (cbny) — the network as it is today.
-
-layout: home                        # home = trimmed single-segment layout (layouts/home.py)
 
 meta:
   title: "Chunbonanyuan"             # 春波南苑 — romanised, Fira Sans has no CJK glyphs
