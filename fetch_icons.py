@@ -36,6 +36,8 @@ ICON_MAP = {
     "signal": "signal", "sonarr": "sonarr", "stirling": "stirling-pdf", "tandoor": "tandoor-recipes",
     "traefik": "traefik", "truenas": "truenas-scale", "unifi": "unifi", "whatsapp": "whatsapp",
     "windows": "microsoft-windows", "wireguard": "wireguard", "zigbee2mqtt": "zigbee2mqtt",
+    # used by the trimmed home-network layout (build.py / inventory.yaml)
+    "apple": "apple", "nintendo-switch": "nintendo-switch", "tailscale": "tailscale", "tp-link": "tp-link",
 }
 
 # dark icons without a light variant: recolor them for the dark background

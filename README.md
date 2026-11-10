@@ -36,23 +36,37 @@ On Arch/CachyOS: `pacman -S python-yaml python-pillow librsvg ttf-fira-sans ttf-
 On Debian/Ubuntu: `apt install python3-yaml python3-pil librsvg2-bin fonts-firacode` plus Fira Sans
 On macOS: `brew install librsvg`, then install the Fira fonts from [mozilla/Fira](https://github.com/mozilla/Fira) (e.g. `brew install --cask font-fira-code font-fira-sans`, if your Homebrew has them).
 
+## Two layouts
+
+This fork carries two renderers, so a small network does not have to pretend to be a datacenter:
+
+| Script | Inventory | What it draws |
+|---|---|---|
+| `build.py` | `inventory.yaml` | trimmed layout for a flat home network: Internet → ONT → router → the clients that are really there, plus the tailnet |
+| `build_full.py` | `inventory.full.yaml` | the upstream full panorama: edge chain, switch port row, Proxmox card, DMZ containers, storage pools, media pipeline |
+
+Both write into `out/` and both accept `--unredacted`. Anything in `inventory.yaml` that is not verified is labelled as unknown rather than invented.
+
 ## Usage
 
 With [uv](https://docs.astral.sh/uv/) (creates `.venv` and installs the pinned dependencies from `uv.lock`):
 
 ```bash
-uv sync                         # once: create .venv, install PyYAML + Pillow
-uv run fetch_icons.py           # downloads the service icons into icons/ (once)
-uv run build.py                 # → out/homelab.svg + out/homelab.png (redacted)
-uv run build.py --unredacted    # → out/homelab-unredacted.svg + .png
+uv sync                            # once: create .venv, install PyYAML + Pillow
+uv run fetch_icons.py              # downloads the service icons into icons/ (once)
+
+uv run build.py                    # trimmed layout   → out/homelab.svg + out/homelab.png
+uv run build_full.py               # full panorama    → out/homelab-full.svg + out/homelab-full.png
+uv run build.py --unredacted       # same, with the real domain / SSIDs
 ```
 
 Or with a plain Python install of PyYAML:
 
 ```bash
-python3 fetch_icons.py          # downloads the service icons into icons/ (once)
-python3 build.py                # → out/homelab.svg + out/homelab.png (redacted)
-python3 build.py --unredacted   # → out/homelab-unredacted.svg + .png
+python3 fetch_icons.py
+python3 build.py
+python3 build_full.py
+python3 build.py --unredacted
 ```
 
 The service icons are **not** in this repo, `fetch_icons.py` downloads them from [homarr-labs/dashboard-icons](https://github.com/homarr-labs/dashboard-icons). Only my own small glyphs (`icons/glyph-*.svg`: CPU, RAM, SSD, …) are included.
