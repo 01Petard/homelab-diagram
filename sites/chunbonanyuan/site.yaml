@@ -1,10 +1,14 @@
-# Inventory for the home-network diagram: everything the picture shows comes from this file.
-# build.py reads it; the positions of the boxes are hand-placed in build.py.
+# One site = one directory: this file is the content, out/ gets the renders.
+# build.py reads it; which renderer runs is decided by `layout` below, and the
+# positions of the boxes are hand-placed in layouts/home.py.
 # Everything here is either measured on this Mac (read-only) or explicitly marked as unknown.
+# This is the flat in 春波南苑 (romanised for the render) — the network as it is today.
+
+layout: home                        # home = trimmed single-segment layout (layouts/home.py)
 
 meta:
-  title: "Home Network"
-  title_redacted: "Home Network"
+  title: "Chunbonanyuan"             # 春波南苑 — romanised, Fira Sans has no CJK glyphs
+  title_redacted: "Chunbonanyuan"
   date: "November 2026"
   watermark: "01Petard"
   domain: "lan"                      # there is no public domain on this network

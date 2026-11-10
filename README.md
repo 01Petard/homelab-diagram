@@ -5,7 +5,7 @@ The script behind the network diagram of my homelab that I posted on r/homelab. 
 ![Example output](docs/example.png)
 
 > [!IMPORTANT]
-> **This is not a general tool.** The *content* comes from `inventory.yaml`, but the *layout* (where every box, port and cable goes) is hand-placed in `build.py` for exactly my network. If you want to use it for yours, expect to move coordinates around in the code. Think of it as a starting point, not a finished product.
+> **This is not a general tool.** The *content* comes from `site.yaml`, but the *layout* (where every box, port and cable goes) is hand-placed in `layouts/` for exactly one network. If you want to use it for yours, expect to move coordinates around in the code. Think of it as a starting point, not a finished product.
 
 > [!NOTE]
 > **The code was written by AI.** I built this together with Claude (Anthropic) in Claude Code. I described what I wanted and gave feedback on every render, Claude wrote and changed the code. A few example prompts are at the end of this README.
@@ -22,9 +22,9 @@ The script behind the network diagram of my homelab that I posted on r/homelab. 
 
 ## How it works
 
-- `inventory.yaml` holds everything the picture shows: VLANs, devices, switch ports, port forwards, hardware, containers, pools.
-- `build.py` draws the diagram as SVG with hand-placed coordinates, embeds the icons and converts it to PNG with `rsvg-convert`. Text widths for a few labels are measured with Pillow from the real font, so tabs and badges fit their text.
-- **Redaction:** by default the real domain is replaced with `redacted.com` and SSIDs get generic names, so the PNG can be posted publicly. `python3 build.py --unredacted` renders a private version with the real values from `inventory.yaml`.
+- Each **site** is a directory under `sites/` with a `site.yaml` and an `out/` for its renders. `site.yaml` holds everything the picture shows: VLANs, devices, switch ports, port forwards, hardware, containers, pools.
+- `build.py` is the entry point: it reads the site's `site.yaml`, picks the renderer named by the `layout:` key and runs it. A renderer (`layouts/home.py`, `layouts/full.py`) draws the diagram as SVG with hand-placed coordinates, embeds the icons and converts it to PNG with `rsvg-convert`. Text widths for a few labels are measured with Pillow from the real font, so tabs and badges fit their text.
+- **Redaction:** by default the real domain is replaced with `redacted.com` and SSIDs get generic names, so the PNG can be posted publicly. `--unredacted` renders a private version with the real values from `site.yaml`.
 
 ## Requirements
 
@@ -36,52 +36,63 @@ On Arch/CachyOS: `pacman -S python-yaml python-pillow librsvg ttf-fira-sans ttf-
 On Debian/Ubuntu: `apt install python3-yaml python3-pil librsvg2-bin fonts-firacode` plus Fira Sans
 On macOS: `brew install librsvg`, then install the Fira fonts from [mozilla/Fira](https://github.com/mozilla/Fira) (e.g. `brew install --cask font-fira-code font-fira-sans`, if your Homebrew has them).
 
-## Two layouts
+## Sites
 
-This fork carries two renderers, so a small network does not have to pretend to be a datacenter:
+One directory per place, so a second household never gets mixed into the first:
 
-| Script | Inventory | What it draws |
-|---|---|---|
-| `build.py` | `inventory.yaml` | trimmed layout for a flat home network: Internet → ONT → router → the clients that are really there, plus the tailnet |
-| `build_full.py` | `inventory.full.yaml` | the upstream full panorama: edge chain, switch port row, Proxmox card, DMZ containers, storage pools, media pipeline |
+```
+sites/
+  chunbonanyuan/          the flat I live in now — trimmed layout
+    site.yaml             content: router, clients, tailnet, network table
+    out/                  chunbonanyuan.svg + .png (git-ignored)
+  origin/                 the upstream lab, kept as a sample of the full schema
+    site.yaml             layout: full
+    out/                  origin.svg + .png
+layouts/                  the renderers, shared by every site
+  home.py                 trimmed: Internet → ONT → router → the clients that are really there
+  full.py                 the upstream panorama: switch port row, Proxmox card, DMZ, pools, pipeline
+build.py                  entry point: picks the renderer from site.yaml's `layout:`
+icons/, fetch_icons.py    shared assets
+```
 
-Both write into `out/` and both accept `--unredacted`. Anything in `inventory.yaml` that is not verified is labelled as unknown rather than invented.
+`layout: home` or `layout: full` in `site.yaml` is the only switch — the content schema is the same, the shape of the picture is not. Anything in a `site.yaml` that is not verified is labelled as unknown rather than invented.
+
+Adding a place takes a directory and a file, no code:
+
+```bash
+mkdir sites/mylab && cp sites/origin/site.yaml sites/mylab/site.yaml   # then edit it
+uv run build.py mylab
+```
 
 ## Usage
 
 With [uv](https://docs.astral.sh/uv/) (creates `.venv` and installs the pinned dependencies from `uv.lock`):
 
 ```bash
-uv sync                            # once: create .venv, install PyYAML + Pillow
-uv run fetch_icons.py              # downloads the service icons into icons/ (once)
+uv sync                        # once: create .venv, install PyYAML + Pillow
+uv run fetch_icons.py          # downloads the service icons into icons/ (once)
 
-uv run build.py                    # trimmed layout   → out/homelab.svg + out/homelab.png
-uv run build_full.py               # full panorama    → out/homelab-full.svg + out/homelab-full.png
-uv run build.py --unredacted       # same, with the real domain / SSIDs
+uv run build.py                # list the sites and what has been rendered so far
+uv run build.py chunbonanyuan  # → sites/chunbonanyuan/out/chunbonanyuan.svg + .png
+uv run build.py chunbonanyuan --unredacted   # same, with the real domain / SSIDs
+uv run build.py --all          # every site
 ```
 
-Or with a plain Python install of PyYAML:
-
-```bash
-python3 fetch_icons.py
-python3 build.py
-python3 build_full.py
-python3 build.py --unredacted
-```
+Or with a plain Python install of PyYAML: the same commands with `python3` instead of `uv run`.
 
 The service icons are **not** in this repo, `fetch_icons.py` downloads them from [homarr-labs/dashboard-icons](https://github.com/homarr-labs/dashboard-icons). Only my own small glyphs (`icons/glyph-*.svg`: CPU, RAM, SSD, …) are included.
 
 ## Making it your own
 
-1. Change `inventory.yaml` to your network. Texts, IPs, ports, VLAN colors and the container groups come from there.
-2. Look at the render. Things that don't fit are layout: the top part (cloud, ISP router, firewall, switch, device row) and the column split inside the server card are coordinates in `build.py` (search for `fy, fh`, `ox, oy`, `bx, by`, `DY`, `MAD = …`).
-3. New icons: drop an SVG into `icons/` and use its file name in the inventory.
+1. `mkdir sites/<your-place>` and copy `sites/origin/site.yaml` (full schema) or `sites/chunbonanyuan/site.yaml` (flat home network) into it. Texts, IPs, ports, VLAN colors and the container groups come from that file.
+2. Look at the render. Things that don't fit are layout: in `layouts/home.py` the chain from the cloud down to the device row is placed by `RY`, `LAN_X`, `DY`; in `layouts/full.py` the top part (cloud, ISP router, firewall, switch, device row) and the column split inside the server card are coordinates there too (search for `fy, fh`, `ox, oy`, `bx, by`, `DY`, `MAD = …`).
+3. New icons: drop an SVG into `icons/` and use its file name in the `site.yaml`.
 
 ## Using it with Claude Code
 
 The repo contains a [`CLAUDE.md`](CLAUDE.md) with everything an AI agent needs to adapt it to your lab: how the code is structured, which parts of the layout are hardcoded, the questions to ask about your network, the render-and-check loop, and the design rules this diagram follows.
 
-Clone the repo, open it with [Claude Code](https://claude.com/claude-code) and say something like *"help me make this diagram for my homelab"*. It will interview you about your network (or read your docs if you have some), rewrite `inventory.yaml`, adapt `build.py` and iterate on the render with you. Other agents can use the same file as context.
+Clone the repo, open it with [Claude Code](https://claude.com/claude-code) and say something like *"help me make this diagram for my homelab"*. It will interview you about your network (or read your docs if you have some), write `sites/<name>/site.yaml`, adapt the layout and iterate on the render with you. Other agents can use the same file as context.
 
 ## How it was made
 

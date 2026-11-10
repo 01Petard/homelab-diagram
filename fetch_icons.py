@@ -20,7 +20,7 @@ SOURCES = [
     "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/main/svg/{}.svg",
 ]
 
-# local file name (as used in inventory.yaml / build.py) -> dashboard-icons name
+# local file name (as used in site.yaml / the layouts) -> dashboard-icons name
 ICON_MAP = {
     "actual": "actual-budget", "adguard": "adguard-home", "alloy": "alloy", "android": "android",
     "authentik": "authentik", "backblaze": "backblaze", "bazarr": "bazarr", "cinny": "cinny",
@@ -36,7 +36,7 @@ ICON_MAP = {
     "signal": "signal", "sonarr": "sonarr", "stirling": "stirling-pdf", "tandoor": "tandoor-recipes",
     "traefik": "traefik", "truenas": "truenas-scale", "unifi": "unifi", "whatsapp": "whatsapp",
     "windows": "microsoft-windows", "wireguard": "wireguard", "zigbee2mqtt": "zigbee2mqtt",
-    # used by the trimmed home-network layout (build.py / inventory.yaml)
+    # used by the trimmed home-network layout (layouts/home.py)
     "apple": "apple", "nintendo-switch": "nintendo-switch", "tailscale": "tailscale", "tp-link": "tp-link",
 }
 

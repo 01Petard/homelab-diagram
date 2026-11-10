@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Render the full homelab diagram (r/homelab style) from inventory.full.yaml.
+"""Render the full homelab panorama (r/homelab style) for one site.
 
-Usage: python3 build_full.py [--unredacted]   → out/homelab-full.svg + out/homelab-full.png
+Called by build.py as: python3 layouts/full.py <site-dir> [--unredacted]
+                        → <site-dir>/out/<site>.svg + .png
 This is the upstream layout, unchanged: an edge chain, a switch port row, a Proxmox
-card with hardware, DMZ containers, storage pools and the media pipeline. Keep it for
-a lab with a switch, a hypervisor and a NAS; inventory.yaml/build.py is the trimmed
-version for a flat home network.
+card with hardware, DMZ containers, storage pools and the media pipeline. Use it for
+a lab with a switch, a hypervisor and a NAS; layouts/home.py is the trimmed version
+for a flat home network. Both read <site-dir>/site.yaml, so the two layouts are two
+shapes for the same kind of content — see sites/example-full for the full schema.
 """
 import base64
 import html
@@ -15,10 +17,14 @@ import sys
 
 import yaml
 
-ROOT = pathlib.Path(__file__).resolve().parent
-INV = yaml.safe_load((ROOT / "inventory.full.yaml").read_text())
+if len(sys.argv) < 2:
+    sys.exit(f"usage: python3 {__file__} <site-dir> [--unredacted]   (or: python3 build.py <site>)")
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent      # repo root: shared icons live there
+SITE = pathlib.Path(sys.argv[1]).resolve()                 # sites/<name>, passed in by build.py
+INV = yaml.safe_load((SITE / "site.yaml").read_text())
 ICONS = ROOT / "icons"
-OUT = ROOT / "out"
+OUT = SITE / "out"
 
 UNREDACTED = "--unredacted" in sys.argv
 RED = INV["redact"]
@@ -909,7 +915,7 @@ S.text(jx + 10, (RB + NH + RC) / 2 + 4, "library", 11, MUTED, 500)
 assert ty0 + th0 <= H - 20, f"canvas too short: terra ends at {ty0 + th0}"
 
 OUT.mkdir(exist_ok=True)
-name = "homelab-full-unredacted" if UNREDACTED else "homelab-full"
+name = f"{SITE.name}-unredacted" if UNREDACTED else SITE.name
 svg_path = OUT / f"{name}.svg"
 svg_path.write_text(S.render())
 png_path = OUT / f"{name}.png"
