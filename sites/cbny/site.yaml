@@ -1,7 +1,7 @@
 # One site = one directory: this file is the content, layout.py next to it holds the
 # hand-placed coordinates, out/ gets the renders.
 # Everything here is either measured on this Mac (read-only) or explicitly marked as unknown.
-# This is the flat in 春波南苑 (cbny) — the network as it is today.
+# This is the flat in 春波南苑 (cbny) — swept again on 2026-11-11, late evening.
 
 meta:
   title: "Chunbonanyuan"             # 春波南苑 — romanised, Fira Sans has no CJK glyphs
@@ -16,11 +16,11 @@ redact:
 
 vlans:   # order = table order
   - {key: "10",  tag: "LAN",       name: LAN,     subnet: "192.168.1.0/24", color: "#58a6ff", note: "one flat segment · DHCP + DNS on the router"}
-  - {key: "vpn", tag: "Tailscale", name: Tailnet, subnet: "100.64.0.0/10",   color: "#39c5cf", note: "overlay · this Mac, an ECS box, a phone"}
+  - {key: "vpn", tag: "Tailscale", name: Tailnet, subnet: "100.64.0.0/10",   color: "#39c5cf", note: "overlay · this Mac, an ECS box, a second Mac"}
   - {key: "wan", tag: "ISP",       name: Uplink,  subnet: "—",              color: "#f85149", note: "ONT ⇄ router · mode not verified"}
 
 internet:
-  caption: "ISP speed unknown · semi-static IPv4"
+  caption: "China Telecom · 115.192.168.59"
   cloud_services:
     - {icon: glyph-cpu, name: "Aliyun ECS", note: "100.64.0.1 · linux · tailnet node"}
 
@@ -44,26 +44,28 @@ isp:
 router:
   name: "TP-Link"
   type: "router"
-  model: "TP-Link wireless router"
+  model: "TP-Link WR740N · 802.11n 150M"
   os: "stock firmware · version unknown"
   ip: "192.168.1.1"
   internal: router
+  wan_speed: "100M"                  # SPEED_W key: the ONT ⇄ router cable is drawn with this width
   config: "the only router · no VLANs, no DMZ"
-  lan_note: "one wired client · the rest join over Wi-Fi"
+  lan_note: "no wired client · everything joins over Wi-Fi"
   clients:
-    - {name: "MacBook Air", ip: "192.168.1.100", link: "1 Gbit", note: "wired · USB Ethernet"}
-    - {name: "iPhone",      ip: "192.168.1.101", link: "Wi-Fi",  note: "DHCP · private MAC"}
-    - {name: "Switch",      ip: "192.168.1.102", link: "Wi-Fi",  note: "DHCP · console"}
+    - {name: "MacBook Air", ip: "192.168.1.104", link: "Wi-Fi", note: "private MAC · this Mac"}
+    - {name: "iPhone",      ip: "192.168.1.101", link: "Wi-Fi", note: "DHCP · private MAC"}
+    - {name: "unknown",     ip: "192.168.1.103", link: "Wi-Fi", note: "iOS device · type unknown"}
+    - {name: "Switch",      ip: "192.168.1.102", link: "Wi-Fi", note: "DHCP · Nintendo OUI"}
   hw:
-    - {icon: glyph-nic,     label: "WAN",       value: "1 Gbit",      sub: "uplink from the ONT"}
-    - {icon: glyph-nic,     label: "LAN",       value: "4× 1 Gbit",   sub: "one flat segment"}
-    - {icon: glyph-antenna, label: "WI-FI",     value: "2.4 + 5 GHz", sub: "SSID not readable from macOS"}
-    - {icon: glyph-dhcp,    label: "DHCP + DNS", value: "192.168.1.1", sub: "relays 114.114.114.114"}
+    - {icon: glyph-nic,     label: "WAN",       value: "100 Mbit",          sub: "uplink from the ONT"}
+    - {icon: glyph-nic,     label: "LAN",       value: "4× 100 Mbit",       sub: "one flat segment"}
+    - {icon: glyph-antenna, label: "WI-FI",     value: "2.4 GHz · 802.11n", sub: "ch 1 · 20 MHz · WPA2"}
+    - {icon: glyph-dhcp,    label: "DHCP + DNS", value: "192.168.1.1",      sub: "also hands out 192.168.0.1"}
   services:
     - {icon: glyph-dhcp,    name: "DHCP server", note: "whole /24 pool"}
-    - {icon: glyph-nic,     name: "DNS relay",   note: "→ 114.114.114.114"}
+    - {icon: glyph-nic,     name: "DNS relay",   note: "resolves · 2nd NS odd"}
     - {icon: glyph-block,   name: "NAT",         note: "no forwards set"}
-    - {icon: glyph-antenna, name: "Wi-Fi AP",    note: "built-in radio"}
+    - {icon: glyph-antenna, name: "Wi-Fi AP",    note: "2.4 GHz radio"}
     - {icon: glyph-shield,  name: "UPnP / IGD",  note: "unverified"}
 
 devices:
@@ -72,18 +74,25 @@ devices:
     type: "laptop"
     model: "Apple M4 · 16 GB"
     os: "macOS 15.7.5"
-    ip: "192.168.1.100"
+    ip: "192.168.1.104"
     internal: hzx-mac
     vlan: "10"
     icons: [apple]
-    link: eth
-    speed: "1G"
+    link: wifi
   iphone:
     name: "iPhone"
     type: "phone"
     model: "iPhone · model unknown"
     os: "iOS"
     ip: "192.168.1.101"
+    vlan: "10"
+    icons: [apple]
+    link: wifi
+  ios:
+    name: "unknown"
+    type: "iOS device"
+    model: "model unknown"
+    ip: "192.168.1.103"
     vlan: "10"
     icons: [apple]
     link: wifi
@@ -99,10 +108,11 @@ devices:
 tailnet:
   - {name: "hzx-mac", ip: "100.64.0.3", os: "macOS", state: "online"}
   - {name: "ecs",     ip: "100.64.0.1", os: "linux", state: "online"}
-  - {name: "qgs-mac", ip: "100.64.0.4", os: "macOS", state: "offline 3 h"}
+  - {name: "qgs-mac", ip: "100.64.0.4", os: "macOS", state: "idle"}
 
 notes:
   - "read on this Mac with read-only probes"
-  - "router model + WAN mode: no login, unverified"
-  - "ISP down/up speed and SSID: unknown"
+  - "router model from its own www-auth realm: WR740N"
+  - "no login attempted → WAN mode, forwards, DHCP pool unverified"
+  - "ISP down/up speed and SSID: unknown (macOS needs location access)"
   - "no NAS, no hypervisor, no VLANs here"

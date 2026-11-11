@@ -1,0 +1,117 @@
+# 中文版内容，与 site.yaml 同结构：英文版默认渲染 site.yaml，`--lang zh` 渲染本文件。
+# 这是春波南苑（cbny）这套出租屋网络，2026-11-11 晚间重新扫描得到的结果。
+# 所有值都来自在本机做的只读探测，探测无法确定的项一律写「未知」，不猜。
+
+meta:
+  title: "春波南苑 家庭网络"           # 图上标题；英文版是 "Chunbonanyuan"
+  title_redacted: "春波南苑 家庭网络"
+  date: "2026 年 11 月"
+  watermark: "01Petard"
+  domain: "lan"                       # 这套网络没有公网域名
+
+redact:
+  domain: false                       # 私人图：保留真实值
+  domain_placeholder: "redacted.lan"
+
+vlans:   # 顺序 = 表格行顺序
+  - {key: "10",  tag: "LAN",       name: "局域网",   subnet: "192.168.1.0/24", color: "#58a6ff", note: "单网段 · DHCP 与 DNS 都在路由器上"}
+  - {key: "vpn", tag: "Tailscale", name: "叠加网络", subnet: "100.64.0.0/10",   color: "#39c5cf", note: "叠加网络 · 本机、一台 ECS、另一台 Mac"}
+  - {key: "wan", tag: "ISP",       name: "上联链路", subnet: "—",              color: "#f85149", note: "光猫 ⇄ 路由器 · 模式未验证"}
+
+internet:
+  caption: "中国电信 · 出口 115.192.168.59"
+  cloud_services:
+    - {icon: glyph-cpu, name: "阿里云 ECS", note: "100.64.0.1 · linux · tailnet 节点"}
+
+remote:
+  name: "远程接入"
+  note: "手机 + 笔记本 · Tailscale"
+
+exposed:
+  title: "对公网开放"
+  note: "没有任何端口映射"
+  sub: "光猫 → 路由器是唯一一跳 NAT"
+
+# 设备卡片格式：名称 + 类型 / 完整型号 / IP · 主机名 / 系统
+isp:
+  name: "ISP 光猫"
+  type: "接入设备"
+  model: "GPON 光猫 · 型号未知"
+  ip: "无管理地址"
+  os: "运营商固件"
+
+router:
+  name: "TP-Link"
+  type: "路由器"
+  model: "TP-Link WR740N · 802.11n 150M"
+  os: "原厂固件 · 版本未知"
+  ip: "192.168.1.1"
+  internal: router
+  wan_speed: "100M"                   # SPEED_W 的键：光猫 ⇄ 路由器那条线的宽度
+  config: "唯一的出口路由 · 无 VLAN，无 DMZ"
+  lan_note: "没有有线客户机 · 全部走 Wi-Fi"
+  clients:
+    - {name: "MacBook Air", ip: "192.168.1.104", link: "Wi-Fi", note: "私有 MAC · 本机"}
+    - {name: "iPhone",      ip: "192.168.1.101", link: "Wi-Fi", note: "DHCP · 私有 MAC"}
+    - {name: "unknown",     ip: "192.168.1.103", link: "Wi-Fi", note: "iOS 设备 · 型号未知"}
+    - {name: "Switch",      ip: "192.168.1.102", link: "Wi-Fi", note: "DHCP · 任天堂 OUI"}
+  hw:
+    - {icon: glyph-nic,     label: "WAN",       value: "100 Mbit",          sub: "自光猫上联"}
+    - {icon: glyph-nic,     label: "LAN",       value: "4× 100 Mbit",       sub: "单网段"}
+    - {icon: glyph-antenna, label: "WI-FI",     value: "2.4 GHz · 802.11n", sub: "信道 1 · 20 MHz · WPA2"}
+    - {icon: glyph-dhcp,    label: "DHCP + DNS", value: "192.168.1.1",      sub: "同时下发 192.168.0.1"}
+  services:
+    - {icon: glyph-dhcp,    name: "DHCP 服务",  note: "整个 /24 地址池"}
+    - {icon: glyph-nic,     name: "DNS 转发",   note: "可解析 · 备用 NS 异常"}
+    - {icon: glyph-block,   name: "NAT",        note: "未设置端口映射"}
+    - {icon: glyph-antenna, name: "Wi-Fi 接入点", note: "2.4 GHz 射频"}
+    - {icon: glyph-shield,  name: "UPnP / IGD",  note: "未验证"}
+
+devices:
+  mac:
+    name: "MacBook Air"
+    type: "笔记本"
+    model: "Apple M4 · 16 GB"
+    os: "macOS 15.7.5"
+    ip: "192.168.1.104"
+    internal: hzx-mac
+    vlan: "10"
+    icons: [apple]
+    link: wifi
+  iphone:
+    name: "iPhone"
+    type: "手机"
+    model: "iPhone · 型号未知"
+    os: "iOS"
+    ip: "192.168.1.101"
+    vlan: "10"
+    icons: [apple]
+    link: wifi
+  ios:
+    name: "unknown"
+    type: "iOS 设备"
+    model: "型号未知"
+    ip: "192.168.1.103"
+    vlan: "10"
+    icons: [apple]
+    link: wifi
+  console:
+    name: "Switch"
+    type: "游戏主机"
+    model: "Nintendo Switch"
+    ip: "192.168.1.102"
+    vlan: "10"
+    icons: [nintendo-switch]
+    link: wifi
+
+tailnet:
+  - {name: "hzx-mac", ip: "100.64.0.3", os: "macOS", state: "online"}
+  - {name: "ecs",     ip: "100.64.0.1", os: "linux", state: "online"}
+  - {name: "qgs-mac", ip: "100.64.0.4", os: "macOS", state: "idle"}
+
+notes:
+  - "全部读自本机的只读探测"
+  - "路由器型号来自它自己的认证域：WR740N"
+  - "未尝试登录 → WAN 模式、端口映射、地址池均未验证"
+  - "运营商上下行带宽与 SSID：未知（macOS 需定位权限）"
+  - "这里没有 NAS，没有虚拟化，也没有 VLAN"

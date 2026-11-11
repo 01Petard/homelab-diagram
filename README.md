@@ -46,9 +46,10 @@ One directory per place, and everything about that place inside it:
 ```
 sites/
   cbny/                   the flat I live in now (春波南苑)
-    site.yaml             content: router, clients, tailnet, network table
+    site.yaml             content: router, four clients, tailnet, network table
+    site.zh.yaml          the same content in Chinese
     layout.py             self-contained script: coordinates + drawing + PNG export
-    out/                  cbny.svg + .png (git-ignored)
+    out/                  cbny.svg + .png (and -zh.* for Chinese)
   hkzn/                   the office segment: 12 clients found by sweeping the /24
     site.yaml             content: gateway, 12 hosts, probe log, egress + overlays
     site.zh.yaml          the same content in Chinese
@@ -83,6 +84,7 @@ uv run fetch_icons.py          # downloads the service icons into icons/ (once)
 
 uv run build.py                # list the sites and what has been rendered so far
 uv run build.py cbny           # → sites/cbny/out/cbny.svg + .png
+uv run build.py cbny --lang zh                # → cbny-zh.svg + .png, from site.zh.yaml
 uv run build.py cbny --unredacted            # same, with the real domain / SSIDs
 uv run build.py hkzn --lang zh      # → hkzn-zh.svg + .png, from site.zh.yaml
 uv run build.py --all          # every site
