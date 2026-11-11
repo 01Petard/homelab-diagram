@@ -38,6 +38,8 @@ ICON_MAP = {
     "windows": "microsoft-windows", "wireguard": "wireguard", "zigbee2mqtt": "zigbee2mqtt",
     # used by the flat home-network layout (sites/cbny/layout.py)
     "apple": "apple", "nintendo-switch": "nintendo-switch", "tailscale": "tailscale", "tp-link": "tp-link",
+    # used by the office-segment layout (sites/hangkezhineng/layout.py)
+    "printer": "printer",
 }
 
 # dark icons without a light variant: recolor them for the dark background

@@ -1,0 +1,98 @@
+# One site = one directory: this file is the content, layout.py next to it holds the
+# hand-placed coordinates, out/ gets the renders.
+# Every value below was measured on this Mac with read-only probes on 2026-11-11:
+# ping sweep of the /24, TCP connect scan, reverse DNS on the gateway, SSH/HTTP banners,
+# ARP for MAC vendors. No credentials were used and nothing was changed.
+# Items that a probe could not settle are written as "unknown" instead of guessed.
+
+meta:
+  title: "Hangkezhineng"             # directory slug; the picture is titled the same
+  title_redacted: "Hangkezhineng"
+  date: "November 2026"
+  watermark: "01Petard"
+  domain: "lan"
+
+redact:
+  domain: false
+
+vlans:   # order = table order
+  - {key: "10",  tag: "LAN",       name: "Office LAN", subnet: "192.168.10.0/24", color: "#58a6ff", note: "one flat segment · 12 clients + gateway seen"}
+  - {key: "vpn", tag: "Tailscale", name: Tailnet,     subnet: "100.64.0.0/10",   color: "#39c5cf", note: "overlay on this Mac · 3 nodes, 1 idle"}
+  - {key: "wan", tag: "ISP",       name: Uplink,      subnet: "—",              color: "#f85149", note: "fiber into the gateway · speed and mode unknown"}
+
+internet:
+  caption: "ISP mode unknown · egress via a proxy"
+
+gateway:
+  name: "YouHua"
+  type: "ONT + router + AP"
+  model: "YouHua gateway · model unverified"
+  ip: "192.168.10.1"
+  os: "ISP firmware · reverse DNS wowifi.smartont.net"
+  hw:
+    - {icon: glyph-nic,     label: "WAN",        value: "fiber",            sub: "speed + mode unknown"}
+    - {icon: glyph-nic,     label: "LAN",        value: "ports unknown",    sub: "one flat segment"}
+    - {icon: glyph-antenna, label: "WI-FI",      value: "802.11ax · 5 GHz", sub: "ch 149 · 80 MHz · WPA2"}
+    - {icon: glyph-dhcp,    label: "DHCP + DNS", value: "192.168.10.1",     sub: "lease 24 h · /24 pool"}
+  mgmt:
+    - "web UI on 80 / 443 · Server: HSANHomeGateway"
+    - "no login attempted → model, WAN mode, port forwards unverified"
+
+# client card: name + kind / ip / mac vendor / what is listening
+# kind drives the colour and the legend: laptop, pc, server, phone, printer, unknown
+clients:
+  - {ip: "192.168.10.9",   name: "Alex-dxd",        kind: pc,      icon: windows,     mac: "Liteon NIC",               ports: "445/tcp windows SMB"}
+  - {ip: "192.168.10.11",  name: "unknown",         kind: server,  icon: glyph-cpu,   mac: "private MAC",              ports: "22/tcp SSH · OpenSSH 10.3"}
+  - {ip: "192.168.10.19",  name: "unknown",         kind: phone,   icon: apple,       mac: "private MAC",              ports: "62078/tcp iOS lockdown"}
+  - {ip: "192.168.10.55",  name: "unknown",         kind: phone,   icon: apple,       mac: "private MAC",              ports: "62078/tcp iOS lockdown"}
+  - {ip: "192.168.10.83",  name: "iQOO-15-Ultra",   kind: phone,   icon: android,     mac: "vivo · private MAC",       ports: "no TCP port answered"}
+  - {ip: "192.168.10.116", name: "unknown",         kind: server,  icon: glyph-cpu,   mac: "private MAC",              ports: "22/tcp SSH · OpenSSH 10.5"}
+  - {ip: "192.168.10.172", name: "hzx-mac",         kind: laptop,  icon: apple,       mac: "this Mac · Apple silicon",  ports: "445/tcp local SMB"}
+  - {ip: "192.168.10.187", name: "unknown",         kind: unknown, icon: none,        mac: "private MAC",              ports: "no TCP port answered"}
+  - {ip: "192.168.10.193", name: "unknown",         kind: printer, icon: printer,     mac: "Canon",                    ports: "no TCP port answered"}
+  - {ip: "192.168.10.232", name: "DESKTOP-RMC7LD9", kind: pc,      icon: windows,     mac: "Intel NIC",                ports: "445/tcp windows SMB"}
+  - {ip: "192.168.10.235", name: "WIN-20251020GFP", kind: pc,      icon: windows,     mac: "AzureWave Wi-Fi",          ports: "no TCP port answered"}
+  - {ip: "192.168.10.247", name: "VYG-AL00",        kind: phone,   icon: android,     mac: "Huawei · private MAC",     ports: "no TCP port answered"}
+
+# kind → colour, also the order of the legend
+kinds:
+  - {key: gateway, label: "gateway",        color: "#f85149"}
+  - {key: laptop,  label: "laptop",         color: "#79c0ff"}
+  - {key: pc,      label: "Windows PC",     color: "#58a6ff"}
+  - {key: server,  label: "Linux host",     color: "#3fb950"}
+  - {key: phone,   label: "phone / tablet", color: "#39c5cf"}
+  - {key: printer, label: "printer",        color: "#c08a5c"}
+  - {key: unknown, label: "unidentified",   color: "#5d6a7c"}
+
+probes:
+  title: "How this was read"
+  lines:
+    - "ping sweep of 192.168.10.0/24 → 12 clients + gateway"
+    - "TCP connect scan: 22 80 443 445 554 8009 9100 62078"
+    - "reverse DNS on the gateway → 6 hostnames"
+    - "SSH + HTTP banners read, ARP for MAC vendors"
+    - "read-only: no logins, nothing changed"
+
+overlays:
+  title: "Egress & overlays"
+  host_label: "THIS HOST"
+  host_lines:
+    - "en0 · 192.168.10.172/24 · 802.11ax ch 149"
+    - "private MAC 12:80:85:3c:2f:84 · hardware 2c:ca:16:2d:86:f2"
+  tail_label: "TAILNET"
+  tailnet:
+    - {name: "hzx-mac", ip: "100.64.0.3", os: "macOS", state: "online"}
+    - {name: "ecs",     ip: "100.64.0.1", os: "linux", state: "online"}
+    - {name: "qgs-mac", ip: "100.64.0.4", os: "macOS", state: "idle"}
+  egress_label: "EGRESS"
+  egress_lines:
+    - "utun9 198.18.0.1 · default routes hijacked"
+    - "observed 141.11.146.63 · HK · AS134972"
+    - "a proxy, not the network's real ISP uplink"
+
+notes:
+  - "13 hosts on the segment: the gateway plus 12 clients"
+  - "no VLANs, no switch management, no DMZ observed"
+  - "gateway model + WAN mode: no login, unverified"
+  - "laptop, phone and Linux MACs are randomised"
+  - "SSID needs location permission on macOS 15"

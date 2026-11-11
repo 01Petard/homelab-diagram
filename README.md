@@ -47,6 +47,10 @@ sites/
     site.yaml             content: router, clients, tailnet, network table
     layout.py             self-contained script: coordinates + drawing + PNG export
     out/                  cbny.svg + .png (git-ignored)
+  hangkezhineng/          the office segment: 12 clients found by sweeping the /24
+    site.yaml             content: gateway, 12 hosts, probe log, egress + overlays
+    layout.py             a client grid instead of a device row
+    out/                  hangkezhineng.svg + .png
   origin/                 the upstream lab, kept as the sample of the full schema
     site.yaml             content: 7 VLANs, switch ports, Proxmox, DMZ, pools
     layout.py             self-contained script: the full panorama
