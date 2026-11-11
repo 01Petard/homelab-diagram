@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """The diagram of the network at hangkezhineng: one flat office segment, 12 clients.
 
-    python3 sites/hangkezhineng/layout.py [--unredacted]  → out/hangkezhineng.svg + .png
+    python3 sites/hangkezhineng/layout.py [--lang en|zh] [--unredacted]
+                                          → out/hangkezhineng[-zh].svg + .png
 
 Internet → YouHua gateway (ONT + router + AP) → the segment, with every host the
 sweep found drawn as its own card. Everything comes from probes: no device here is
 invented, and unnamed hosts are labelled "unknown host" instead of being guessed.
-Content comes from site.yaml in this directory, the positions are hand-placed below.
-Self-contained: nothing outside this directory except the icons and the fonts is
-needed to draw it, so it can be edited without touching any other site.
+Content comes from site.yaml (English) or site.zh.yaml (Chinese) in this directory,
+the positions are hand-placed below. Self-contained: nothing outside this directory
+except the icons and the fonts is needed to draw it, so it can be edited without
+touching any other site.
 """
 import base64
 import html
@@ -20,11 +22,34 @@ import yaml
 
 SITE = pathlib.Path(__file__).resolve().parent          # this directory: site.yaml and out/ live here
 ROOT = SITE.parent.parent                               # repo root: the shared icons are there
-INV = yaml.safe_load((SITE / "site.yaml").read_text())
 ICONS = ROOT / "icons"
 OUT = SITE / "out"
 
+
+def opt(name, default=None):
+    """Value of --name=value or --name value on the command line."""
+    args = sys.argv[1:]
+    for i, a in enumerate(args):
+        if a == f"--{name}" and i + 1 < len(args):
+            return args[i + 1]
+        if a.startswith(f"--{name}="):
+            return a.split("=", 1)[1]
+    return default
+
+
 UNREDACTED = "--unredacted" in sys.argv
+LANG = opt("lang", "en")
+if LANG not in ("en", "zh"):
+    sys.exit(f"unknown --lang '{LANG}' (en | zh)")
+
+# Each language brings its own complete content file: reading both would mean
+# guessing which of the two is authoritative, and a half-translated picture is
+# worse than one that says which file it came from.
+CFG = SITE / ("site.yaml" if LANG == "en" else f"site.{LANG}.yaml")
+if not CFG.is_file():
+    sys.exit(f"{CFG.relative_to(ROOT)} not found — the {LANG} version needs its own content file")
+
+INV = yaml.safe_load(CFG.read_text())
 RED = INV["redact"]
 DOMAIN = INV["meta"]["domain"]
 SHOWN_DOMAIN = DOMAIN if (UNREDACTED or not RED["domain"]) else RED["domain_placeholder"]
@@ -53,6 +78,46 @@ VLAN = {v["key"]: v for v in INV["vlans"]}
 C = {k: v["color"] for k, v in VLAN.items()}
 SANS = "Fira Sans"
 MONO = "Fira Code"
+if LANG == "zh":
+    # Fira has no CJK glyphs, so the renderer (Pango) falls back per character:
+    # latin stays Fira, Chinese is handed to the system font. Without the stack
+    # every Chinese character would come out as an empty box.
+    CJK = ", PingFang SC, Noto Sans CJK SC, Hiragino Sans GB, sans-serif"
+    SANS, MONO = SANS + CJK, MONO + CJK
+
+# Interface strings. The content is in site.yaml / site.zh.yaml; these are the
+# labels this layout draws itself, so they live with the coordinates.
+UI = {
+    "en": dict(
+        internet="Internet", networks="Networks", legend="Legend", client_types="CLIENT TYPES",
+        facts="Facts & gaps", hardware="HARDWARE", management="MANAGEMENT", lan="LAN",
+        lan_clients="{subnet} · {n} clients found by ping + TCP sweep", lan_note="single flat segment · no VLANs",
+        link_label="Wi-Fi + LAN ports", unknown_host="unknown host",
+        link_cable="cable, colored by network", link_wifi="Wi-Fi (no cable)",
+        link_tunnel="a tunnel, not a cable", link_uplink="uplink to the ISP",
+        state_online="online", state_idle="idle",
+    ),
+    "zh": dict(
+        internet="互联网", networks="网络", legend="图例", client_types="设备类型",
+        facts="已知与未知", hardware="硬件", management="管理", lan="局域网",
+        lan_clients="{subnet} · ping + TCP 扫描发现 {n} 台客户机",
+        lan_note="单网段 · 无 VLAN",
+        link_label="Wi-Fi + 网口", unknown_host="未知主机",
+        link_cable="网线，颜色代表所属网络", link_wifi="Wi-Fi（无线接入）",
+        link_tunnel="隧道，不是网线", link_uplink="上联至运营商",
+        state_online="在线", state_idle="空闲",
+    ),
+}[LANG]
+
+WIDE = ((0x1100, 0x115F), (0x2E80, 0x303E), (0x3041, 0x33FF), (0x3400, 0x4DBF),
+        (0x4E00, 0x9FFF), (0xA000, 0xA4CF), (0xAC00, 0xD7A3), (0xF900, 0xFAFF),
+        (0xFE30, 0xFE4F), (0xFF00, 0xFF60), (0xFFE0, 0xFFE6))
+
+
+def wide(ch):
+    """CJK and full-width punctuation advance one em, unlike the latin estimate."""
+    o = ord(ch)
+    return any(a <= o <= b for a, b in WIDE)
 
 
 def trunk_w(speed):
@@ -72,8 +137,8 @@ def esc(s):
 
 
 def tw(s, size, mono=False):
-    """Rough text width for layout decisions."""
-    return len(sub(s)) * size * (0.6 if mono else 0.53)
+    """Rough text width for layout decisions (a wide character is a full em)."""
+    return sum(size if wide(c) else size * (0.6 if mono else 0.53) for c in sub(s))
 
 
 def _font_file(pattern):
@@ -92,19 +157,27 @@ try:
         raise RuntimeError("Fira Sans not found")
     _FCACHE = {}
 
-    def measure(s, size, weight=700):
+    def _latin(s, size, weight):
         key = (weight, size)
         if key not in _FCACHE:
             _FCACHE[key] = ImageFont.truetype(_FONTS[weight], size=size * 8)
         return _FCACHE[key].getlength(s) / 8
+
+    def measure(s, size, weight=700):
+        """Width of a mixed latin / CJK string, latin from the real font, CJK at one em."""
+        total, buf = 0.0, ""
+        for ch in str(s):
+            if wide(ch):
+                total += _latin(buf, size, weight) if buf else 0.0
+                buf = ""
+                total += size
+            else:
+                buf += ch
+        return total + (_latin(buf, size, weight) if buf else 0.0)
 except Exception:          # no Pillow / font file: rough estimate
     def measure(s, size, weight=700):
-        return tw_title(s, size)
-
-
-def tw_title(s, size):
-    """Width estimate for bold title text (capitals are wider than lowercase)."""
-    return sum(0.68 if c.isupper() else 0.58 if c.isdigit() else 0.5 for c in s) * size
+        return sum(size if wide(c) else (0.68 if c.isupper() else 0.58 if c.isdigit() else 0.5) * size
+                   for c in str(s))
 
 
 def fqdn(h):
@@ -327,7 +400,7 @@ KIND = {k["key"]: k for k in INV["kinds"]}
 vx, vy, vw = 40, 140, 500
 vh = 70 + len(INV["vlans"]) * 60
 S.rect(vx, vy, vw, vh, rx=14, fill=PANEL, stroke=BORDER, sw=1.4)
-S.text(vx + 20, vy + 36, "Networks", 19, TEXT, 600)
+S.text(vx + 20, vy + 36, UI["networks"], 19, TEXT, 600)
 for i, v in enumerate(INV["vlans"]):
     y = vy + 56 + i * 60
     S.rect(vx + 14, y, vw - 28, 52, rx=9, fill=CHIP, stroke=v["color"] + "55", sw=1)
@@ -354,19 +427,19 @@ lgx, lgw = 40, 500
 lgy = py0 + ph + 24
 lg_h = 66 + 4 * 27 + 34 + ((len(kg) + 1) // 2) * 26 + 14
 S.rect(lgx, lgy, lgw, lg_h, rx=14, fill=PANEL, stroke=BORDER, sw=1.4)
-S.text(lgx + 20, lgy + 36, "Legend", 19, TEXT, 600)
+S.text(lgx + 20, lgy + 36, UI["legend"], 19, TEXT, 600)
 SX, TX = lgx + 22, lgx + 106
 for i, (col, sw_, dash, lbl) in enumerate((
-        (C["10"], 2.4, None, "cable, colored by network"),
-        (C["10"], 2, "3 4", "Wi-Fi (no cable)"),
-        (MUTED, 1.8, "2 5", "a tunnel, not a cable"),
-        (C["wan"], 3, None, "uplink to the ISP"))):
+        (C["10"], 2.4, None, UI["link_cable"]),
+        (C["10"], 2, "3 4", UI["link_wifi"]),
+        (MUTED, 1.8, "2 5", UI["link_tunnel"]),
+        (C["wan"], 3, None, UI["link_uplink"]))):
     y = lgy + 66 + i * 27
     S.line([(SX, y), (SX + 62, y)], col, sw_, dash=dash, r=0)
     S.text(TX, y + 4.5, lbl, 13, MUTED, 400)
 
 ky = lgy + 66 + 4 * 27 + 6
-S.text(lgx + 22, ky, "CLIENT TYPES", 11.5, HWC, 700, ls=1.4)
+S.text(lgx + 22, ky, UI["client_types"], 11.5, HWC, 700, ls=1.4)
 for i, k in enumerate(kg):
     col_, row_ = i // 4, i % 4
     x, y = lgx + 22 + col_ * 232, ky + 26 + row_ * 26
@@ -377,7 +450,7 @@ for i, k in enumerate(kg):
 nq = INV["notes"]
 ny0 = lgy + lg_h + 24
 S.rect(40, ny0, 500, 56 + len(nq) * 26, rx=14, fill=PANEL, stroke=BORDER, sw=1.4)
-S.text(60, ny0 + 34, "Facts & gaps", 19, TEXT, 600)
+S.text(60, ny0 + 34, UI["facts"], 19, TEXT, 600)
 for i, n in enumerate(nq):
     y = ny0 + 62 + i * 26
     S.add(f'<circle cx="66" cy="{y - 4}" r="2.4" fill="{FAINT}"/>')
@@ -395,7 +468,7 @@ S.add(f'<rect x="{CX-150}" y="{cy0+12}" width="300" height="46" rx="23" fill="#3
 for dx, dy, r in blobs:
     S.add(f'<circle cx="{CX+dx}" cy="{cy0+dy}" r="{r}" fill="#1a2433"/>')
 S.add(f'<rect x="{CX-147.5}" y="{cy0+14.5}" width="295" height="41" rx="20.5" fill="#1a2433"/>')
-S.text(CX, cy0 + 14, "Internet", 26, TEXT, 600, "middle")
+S.text(CX, cy0 + 14, UI["internet"], 26, TEXT, 600, "middle")
 S.text(CX, cy0 + 40, INV["internet"]["caption"], 13, MUTED, 400, "middle")
 
 # ================================================================ right column: egress + overlays
@@ -417,7 +490,7 @@ for i, n in enumerate(ov["tailnet"]):
     S.text(OX_ + 40, y, n["name"], 13.5, TEXT, 600)
     S.text(OX_ + 200, y, n["ip"], 12.5, C["vpn"], 500, mono=True)
     S.text(OX_ + 340, y, n["os"], 12.5, MUTED, 400, mono=True)
-    S.text(OX_ + OW_ - 24, y, n["state"], 12, MUTED if on else FAINT, 400, "end")
+    S.text(OX_ + OW_ - 24, y, UI[f"state_{n['state']}"], 12, MUTED if on else FAINT, 400, "end")
 
 S.text(OX_ + 20, OY_ + 306, ov["egress_label"], 11.5, HWC, 700, ls=1.4)
 for i, ln in enumerate(ov["egress_lines"]):
@@ -436,7 +509,7 @@ S.line([(CX, cy0 + 58), (CX, GY - 4)], "#6b7a90", 3)
 S.add(f'<circle cx="{CX}" cy="{GY - 4}" r="10" fill="#0b0f15" stroke="#5a6b82" stroke-width="2"/>'
       f'<circle cx="{CX}" cy="{GY - 4}" r="2.6" fill="{C["wan"]}"/>')
 
-S.text(GX + 18, GY + 96, "HARDWARE", 11.5, HWC, 700, ls=1.4)
+S.text(GX + 18, GY + 96, UI["hardware"], 11.5, HWC, 700, ls=1.4)
 for i, hwi in enumerate(gw["hw"]):
     x, y = GX + 16 + i * 212, GY + 106
     S.rect(x, y, 200, 70, rx=11, fill="#151d29", stroke="#2e3a4c", sw=1.2)
@@ -446,7 +519,7 @@ for i, hwi in enumerate(gw["hw"]):
     S.text(x + 50, y + 42, hwi["value"], 15, TEXT, 700)
     S.text(x + 50, y + 58, hwi["sub"], 10.5, MUTED, 400)
 
-S.text(GX + 18, GY + 206, "MANAGEMENT", 11.5, HWC, 700, ls=1.4)
+S.text(GX + 18, GY + 206, UI["management"], 11.5, HWC, 700, ls=1.4)
 for i, ln in enumerate(gw["mgmt"]):
     S.text(GX + 18, GY + 228 + i * 22, ln, 12.5, MUTED, 400)
 
@@ -458,13 +531,13 @@ rows = (len(cl) + COLS - 1) // COLS
 LH = 60 + rows * CH_ + (rows - 1) * GAPY + 24
 S.rect(LX, LY, LW, LH, rx=14, fill="#0e151e", stroke=C["10"] + "44", sw=1.4)
 
-S.text(LX + 24, LY + 34, "LAN", 15, C["10"], 700, mono=True)
-S.text(LX + 78, LY + 34, f"192.168.10.0/24 · {len(cl)} clients found by ping + TCP sweep", 14, TEXT, 500)
-S.text(LX + LW - 24, LY + 34, "single flat segment · no VLANs", 12.5, FAINT, 400, "end")
+S.text(LX + 24, LY + 34, UI["lan"], 15, C["10"], 700, mono=True)
+S.text(LX + 78, LY + 34, UI["lan_clients"].format(n=len(cl), subnet=VLAN["10"]["subnet"]), 14, TEXT, 500)
+S.text(LX + LW - 24, LY + 34, UI["lan_note"], 12.5, FAINT, 400, "end")
 
 # one cable from the gateway into the segment, labelled for what it is
 S.line([(CX, GY + GH), (CX, LY)], C["10"], 3)
-S.label(CX + 8, GY + GH + 44, "Wi-Fi + LAN ports", C["10"], 11, anchor="start")
+S.label(CX + 8, GY + GH + 44, UI["link_label"], C["10"], 11, anchor="start")
 
 
 def client_card(x, y, c):
@@ -478,9 +551,10 @@ def client_card(x, y, c):
         S.text(x + 33, y + 40, "?", 18, FAINT, 700, "middle")
     else:
         S.icon(c["icon"], x + 16, y + 16, 34)
-    S.text(x + 60, y + 38, c["name"] if named else "unknown host", 15.5, TEXT if named else FAINT, 600)
+    S.text(x + 60, y + 38, c["name"] if named else UI["unknown_host"], 15.5, TEXT if named else FAINT, 600)
     S.text(x + 60, y + 60, c["ip"], 12.5, col, 500, mono=True)
-    S.text(x + CW - 16, y + 26, KIND[c["kind"]]["label"].upper(), 9.5, col, 700, "end", ls=0.8)
+    S.text(x + CW - 16, y + 26, KIND[c["kind"]]["label"].upper(), 10 if LANG == "zh" else 9.5,
+           col, 700, "end", ls=0.8)
     S.line([(x + 16, y + 76), (x + CW - 16, y + 76)], BORDER, 1)
     S.text(x + 16, y + 98, c["mac"], 11.5, MUTED, 400)
     S.text(x + 16, y + 120, c["ports"], 11.5, FAINT, 400, mono=True)
@@ -497,7 +571,7 @@ assert LY + LH <= H - 20, f"canvas too short: the LAN panel ends at {LY + LH}"
 assert ny0 + 56 + len(nq) * 26 <= H, "left column runs off the canvas"
 
 OUT.mkdir(exist_ok=True)
-name = f"{SITE.name}-unredacted" if UNREDACTED else SITE.name
+name = "-".join([SITE.name] + ([] if LANG == "en" else [LANG]) + (["unredacted"] if UNREDACTED else []))
 svg_path = OUT / f"{name}.svg"
 svg_path.write_text(S.render())
 png_path = OUT / f"{name}.png"

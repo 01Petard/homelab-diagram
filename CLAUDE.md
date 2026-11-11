@@ -8,11 +8,12 @@ Start by telling the user briefly how this works (interview → site.yaml → la
 
 - One **site** = one directory under `sites/`, holding `site.yaml` (all content), `layout.py` (a complete standalone script: coordinates, drawing, PNG export) and `out/` (its renders). Copying a site directory gives you both files to start from.
 - `site.yaml` – all content: VLANs, devices, switch ports, port forwards, server hardware, VMs/containers, storage pools, the media pipeline.
+- **Language** – English is the default and reads `site.yaml`. A site that should also render in Chinese ships `site.zh.yaml` with the same schema; `--lang zh` renders that to `out/<name>-zh.png`. Interface labels the layout draws itself (panel headings, legend entries, "unknown host") live in the `UI` dict at the top of `layout.py`, keyed `en`/`zh` — that is the only place those need translating. Keep a translation whole: a half-translated picture is worse than an English one.
 - `layout.py` – self-contained: it locates its own directory, reads the `site.yaml` next to it, draws an SVG with absolute coordinates (logical canvas `W = 2400`, height `H`), embeds icons as base64 and converts to PNG with `rsvg-convert -z 1.6` (so PNG pixels = SVG units × 1.6). Nothing is imported from the other sites; shared code would be duplicated, and that is deliberate.
 - `build.py` – entry point that finds the sites and runs their `layout.py`; `python3 build.py` alone lists them. `python3 sites/<name>/layout.py` renders one directly.
 - `sites/origin/layout.py` – the panorama layout, and the schema reference for every field. `sites/cbny/layout.py` – the trimmed layout for a flat home network.
 - `fetch_icons.py` – downloads service icons into `icons/` (dashboard-icons). Own glyphs `icons/glyph-*.svg` are in the repo.
-- Output: `sites/<name>/out/<name>.png` (redacted, safe to post) and `<name>-unredacted.png` (`--unredacted`).
+- Output: `sites/<name>/out/<name>.png` (redacted, safe to post), `<name>-unredacted.png` (`--unredacted`) and `<name>-zh.png` (`--lang zh`).
 
 ### What is generic and what is hardcoded
 

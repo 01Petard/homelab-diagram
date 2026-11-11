@@ -4,7 +4,8 @@
     python3 build.py                     list the sites under sites/
     python3 build.py cbny                → sites/cbny/out/cbny.svg + cbny.png
     python3 build.py cbny --unredacted
-    python3 build.py --all [--unredacted]
+    python3 build.py cbny --lang zh      → cbny-zh.png, from the site's site.zh.yaml
+    python3 build.py --all [--unredacted] [--lang zh]
 
 A **site** is a directory under `sites/` that keeps everything about one place
 together: the content (`site.yaml`), the hand-placed coordinates for that network
@@ -59,8 +60,26 @@ def render(site_dir, flags):
 
 def main():
     args = sys.argv[1:]
-    flags = [a for a in args if a == "--unredacted"]
-    names = [a for a in args if not a.startswith("--")]
+    flags, names = [], []
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a == "--lang":                       # --lang zh, kept out of `names`
+            if i + 1 >= len(args):
+                sys.exit("--lang needs a value (en | zh)")
+            flags += [a, args[i + 1]]
+            i += 2
+            continue
+        if a == "--unredacted" or a.startswith("--lang="):
+            flags.append(a)
+        elif not a.startswith("--"):
+            names.append(a)
+        i += 1
+
+    lang = flags[flags.index("--lang") + 1] if "--lang" in flags else \
+        next((f.split("=", 1)[1] for f in flags if f.startswith("--lang=")), "en")
+    if lang not in ("en", "zh"):
+        sys.exit(f"unknown --lang '{lang}' (en | zh)")
 
     if names:
         targets = [SITES / n for n in names]
@@ -74,6 +93,13 @@ def main():
         sys.exit(f"no sites under {SITES.relative_to(ROOT)}/ — add one with site.yaml + layout.py, see README.md")
 
     for site_dir in targets:
+        if lang != "en" and not (site_dir / f"site.{lang}.yaml").is_file():
+            # --all walks over sites that may not have a translation yet; a site
+            # named on the command line was asked for explicitly, so say so.
+            if names:
+                sys.exit(f"{site_dir.name}: no site.{lang}.yaml — the {lang} version needs its own content file")
+            print(f"[{site_dir.name}] skipped: no site.{lang}.yaml")
+            continue
         render(site_dir, flags)
 
 

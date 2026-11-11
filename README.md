@@ -25,6 +25,7 @@ The script behind the network diagram of my homelab that I posted on r/homelab. 
 - Each **site** is a directory under `sites/` holding everything about one place: `site.yaml` (everything the picture shows: VLANs, devices, switch ports, port forwards, hardware, containers, pools), `layout.py` (a complete standalone script: where every box and cable goes, the drawing itself, the PNG export) and `out/` (the pictures).
 - Each `layout.py` is self-contained — it knows its own directory and imports nothing from the other sites. Changing one site cannot break another, which is the point: a layout is hand-placed for exactly one network.
 - `build.py` only finds the sites and runs them; `python3 sites/<name>/layout.py` does the same thing directly.
+- **Languages:** the picture is English by default. A site can ship a `site.zh.yaml` next to its `site.yaml`, and `--lang zh` renders that instead (`out/<site>-zh.png`). Interface labels this layout draws itself live in a small `UI` table at the top of `layout.py`; everything else is content. There is no partial translation: a language either has its own complete content file or the site says it does not.
 - **Redaction:** by default the real domain is replaced with `redacted.com` and SSIDs get generic names, so the PNG can be posted publicly. `--unredacted` renders a private version with the real values from `site.yaml`.
 
 ## Requirements
@@ -32,6 +33,7 @@ The script behind the network diagram of my homelab that I posted on r/homelab. 
 - Python 3.11+ with **PyYAML** and **Pillow** (Pillow is optional, but makes label widths exact). Both are declared in `pyproject.toml`, so [uv](https://docs.astral.sh/uv/) installs them for you — see below.
 - **rsvg-convert** (librsvg) for the PNG
 - the fonts **Fira Sans** and **Fira Code** installed (found via fontconfig)
+- only for `--lang zh`: a CJK font — **PingFang SC** on macOS, **Noto Sans CJK SC** on Linux. The layout puts it behind Fira in the font stack, so latin stays Fira and Chinese is handed to the system font per character; without one every Chinese glyph becomes an empty box. Chinese text is measured at one em per character, so the boxes still fit.
 
 On Arch/CachyOS: `pacman -S python-yaml python-pillow librsvg ttf-fira-sans ttf-fira-code`
 On Debian/Ubuntu: `apt install python3-yaml python3-pil librsvg2-bin fonts-firacode` plus Fira Sans
@@ -49,8 +51,9 @@ sites/
     out/                  cbny.svg + .png (git-ignored)
   hangkezhineng/          the office segment: 12 clients found by sweeping the /24
     site.yaml             content: gateway, 12 hosts, probe log, egress + overlays
+    site.zh.yaml          the same content in Chinese
     layout.py             a client grid instead of a device row
-    out/                  hangkezhineng.svg + .png
+    out/                  hangkezhineng.svg + .png (and -zh.* for Chinese)
   origin/                 the upstream lab, kept as the sample of the full schema
     site.yaml             content: 7 VLANs, switch ports, Proxmox, DMZ, pools
     layout.py             self-contained script: the full panorama
@@ -81,6 +84,7 @@ uv run fetch_icons.py          # downloads the service icons into icons/ (once)
 uv run build.py                # list the sites and what has been rendered so far
 uv run build.py cbny           # → sites/cbny/out/cbny.svg + .png
 uv run build.py cbny --unredacted            # same, with the real domain / SSIDs
+uv run build.py hangkezhineng --lang zh      # → hangkezhineng-zh.svg + .png, from site.zh.yaml
 uv run build.py --all          # every site
 ```
 
