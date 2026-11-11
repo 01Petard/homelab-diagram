@@ -6,7 +6,7 @@
 # Items that a probe could not settle are written as "unknown" instead of guessed.
 
 meta:
-  title: "Hangkezhineng"             # directory slug; the picture is titled the same
+  title: "Hangkezhineng"             # the title drawn on the picture; the directory is hkzn
   title_redacted: "Hangkezhineng"
   date: "November 2026"
   watermark: "01Petard"

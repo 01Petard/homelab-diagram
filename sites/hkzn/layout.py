@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""The diagram of the network at hangkezhineng: one flat office segment, 12 clients.
+"""The diagram of the network at hkzn: one flat office segment, 12 clients.
 
-    python3 sites/hangkezhineng/layout.py [--lang en|zh] [--unredacted]
-                                          → out/hangkezhineng[-zh].svg + .png
+    python3 sites/hkzn/layout.py [--lang en|zh] [--unredacted]
+                                 → out/hkzn[-zh].svg + .png
 
 Internet → YouHua gateway (ONT + router + AP) → the segment, with every host the
 sweep found drawn as its own card. Everything comes from probes: no device here is

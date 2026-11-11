@@ -4,7 +4,7 @@
 # 探测无法确定的项一律写「未知」，不猜。
 
 meta:
-  title: "Hangkezhineng 办公网络"     # 目录名保留拼音，标题里保留原名
+  title: "Hangkezhineng 办公网络"     # 目录名是 hkzn，标题里保留原名
   title_redacted: "Hangkezhineng 办公网络"
   date: "2026 年 11 月"
   watermark: "01Petard"

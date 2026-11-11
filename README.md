@@ -49,11 +49,11 @@ sites/
     site.yaml             content: router, clients, tailnet, network table
     layout.py             self-contained script: coordinates + drawing + PNG export
     out/                  cbny.svg + .png (git-ignored)
-  hangkezhineng/          the office segment: 12 clients found by sweeping the /24
+  hkzn/                   the office segment: 12 clients found by sweeping the /24
     site.yaml             content: gateway, 12 hosts, probe log, egress + overlays
     site.zh.yaml          the same content in Chinese
     layout.py             a client grid instead of a device row
-    out/                  hangkezhineng.svg + .png (and -zh.* for Chinese)
+    out/                  hkzn.svg + .png (and -zh.* for Chinese)
   origin/                 the upstream lab, kept as the sample of the full schema
     site.yaml             content: 7 VLANs, switch ports, Proxmox, DMZ, pools
     layout.py             self-contained script: the full panorama
@@ -84,7 +84,7 @@ uv run fetch_icons.py          # downloads the service icons into icons/ (once)
 uv run build.py                # list the sites and what has been rendered so far
 uv run build.py cbny           # → sites/cbny/out/cbny.svg + .png
 uv run build.py cbny --unredacted            # same, with the real domain / SSIDs
-uv run build.py hangkezhineng --lang zh      # → hangkezhineng-zh.svg + .png, from site.zh.yaml
+uv run build.py hkzn --lang zh      # → hkzn-zh.svg + .png, from site.zh.yaml
 uv run build.py --all          # every site
 ```
 
