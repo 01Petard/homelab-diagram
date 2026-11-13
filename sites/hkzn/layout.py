@@ -45,9 +45,21 @@ if LANG not in ("en", "zh"):
 # Each language brings its own complete content file: reading both would mean
 # guessing which of the two is authoritative, and a half-translated picture is
 # worse than one that says which file it came from.
+inventory = None
+for i, arg in enumerate(sys.argv[1:], 1):
+    if arg == "--inventory":
+        if i + 1 >= len(sys.argv) or sys.argv[i + 1].startswith("--"):
+            sys.exit("--inventory needs a file path")
+        inventory = sys.argv[i + 1]
+    elif arg.startswith("--inventory="):
+        inventory = arg.split("=", 1)[1]
+        if not inventory:
+            sys.exit("--inventory needs a file path")
 CFG = SITE / ("site.yaml" if LANG == "en" else f"site.{LANG}.yaml")
+if inventory is not None:
+    CFG = pathlib.Path(inventory)
 if not CFG.is_file():
-    sys.exit(f"{CFG.relative_to(ROOT)} not found — the {LANG} version needs its own content file")
+    sys.exit(f"{CFG} not found — the {LANG} version needs its own content file")
 
 INV = yaml.safe_load(CFG.read_text())
 RED = INV["redact"]
@@ -152,7 +164,8 @@ def _font_file(pattern):
 
 try:
     from PIL import ImageFont
-    _FONTS = {700: _font_file("Fira Sans:bold"), 600: _font_file("Fira Sans:semibold")}
+    _FONTS = {700: _font_file("Fira Sans:bold"), 600: _font_file("Fira Sans:semibold"),
+              400: _font_file("Fira Sans:regular")}
     if not all(_FONTS.values()):
         raise RuntimeError("Fira Sans not found")
     _FCACHE = {}
@@ -385,8 +398,9 @@ def port_row(px_list, y, color_key, label_map):
 # ================================================================ background + header
 S.add(f'<defs><pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse">'
       f'<circle cx="1.5" cy="1.5" r="1.3" fill="{GRID}"/></pattern></defs>')
-S.rect(0, 0, W, H, rx=0, fill=BG, stroke=BG, sw=0)
-S.rect(0, 0, W, H, rx=0, fill="url(#dots)", stroke="none", sw=0)
+BG_IDX = len(S.p)
+S.add("")
+S.add("")
 
 meta = INV["meta"]
 title = meta["title"] if (UNREDACTED or not RED["domain"]) else meta["title_redacted"]
@@ -516,8 +530,10 @@ for i, hwi in enumerate(gw["hw"]):
     hw_bar(x, y, 70)
     S.icon(hwi["icon"], x + 12, y + 18, 28)
     S.text(x + 50, y + 22, hwi["label"], 10, HWC, 700, ls=1.3)
-    S.text(x + 50, y + 42, hwi["value"], 15, TEXT, 700)
-    S.text(x + 50, y + 58, hwi["sub"], 10.5, MUTED, 400)
+    vs = min(15, 15 * 138 / max(measure(hwi["value"], 15, 700), 1))
+    S.text(x + 50, y + 42, hwi["value"], round(vs, 2), TEXT, 700)
+    ss = min(10.5, 10.5 * 138 / max(measure(hwi["sub"], 10.5, 400), 1))
+    S.text(x + 50, y + 58, hwi["sub"], round(ss, 2), MUTED, 400)
 
 S.text(GX + 18, GY + 206, UI["management"], 11.5, HWC, 700, ls=1.4)
 for i, ln in enumerate(gw["mgmt"]):
@@ -564,6 +580,12 @@ for i, c in enumerate(cl):
     cx_ = LX + 24 + (i % COLS) * (CW + GAPX)
     cy_ = LY + 60 + (i // COLS) * (CH_ + GAPY)
     client_card(cx_, cy_, c)
+
+H = int(max(LY + LH, ny0 + 56 + len(nq) * 26, OY_ + 500, GY + GH) + 32)
+S.rect(0, 0, W, H, rx=0, fill=BG, stroke=BG, sw=0)
+S.rect(0, 0, W, H, rx=0, fill="url(#dots)", stroke="none", sw=0)
+_dots = S.p.pop()
+S.p[BG_IDX], S.p[BG_IDX + 1] = S.p.pop(), _dots
 
 assert GX + GW_ <= OX_, "gateway card runs into the right column"
 assert LX + LW <= W - 40, "client grid runs off the canvas"

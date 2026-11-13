@@ -135,3 +135,19 @@ About 60 prompts went into this. Three typical ones, to give an idea of how the 
 - Code and the glyph icons in `icons/`: MIT, see [LICENSE](LICENSE).
 - Service icons: [homarr-labs/dashboard-icons](https://github.com/homarr-labs/dashboard-icons), downloaded by `fetch_icons.py`, not part of this repo. The logos belong to their projects.
 - Fonts: [Fira Sans / Fira Code](https://github.com/mozilla/Fira) (SIL Open Font License), not included.
+
+### Local rendering improvements
+
+Adapted from [upstream PR #1](https://github.com/Goblinmine/homelab-diagram/pull/1),
+while retaining independent site layouts and English/Chinese inventories:
+
+```sh
+uv run python build.py cbny --lang zh
+uv run python build.py origin --inventory /path/to/alternative.yaml
+uv run python -m unittest discover -s tests -v
+```
+
+Canvas heights follow panel bottoms and hardware text fits tile widths. The origin
+panorama also supports optional ISP stubs, PPSK SSIDs, guest VM/node/VLAN labels,
+switch port labels and pool usage warnings/wrapping. See `CLAUDE.md` for fields.
+Inventory overrides require exactly one site and that site's existing schema.
