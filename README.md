@@ -5,7 +5,7 @@ The script behind the network diagram of my homelab that I posted on r/homelab. 
 ![Example output](docs/example.png)
 
 > [!IMPORTANT]
-> **This is not a general tool.** The *content* comes from `site.yaml`, but the *layout* (where every box, port and cable goes) is hand-placed in that site's `layout.py` for exactly one network. If you want to use it for yours, expect to move coordinates around in the code. Think of it as a starting point, not a finished product.
+> **This is not a general tool.** The *content* comes from `site.en.yaml`, but the *layout* (where every box, port and cable goes) is hand-placed in that site's `layout.py` for exactly one network. If you want to use it for yours, expect to move coordinates around in the code. Think of it as a starting point, not a finished product.
 
 > [!NOTE]
 > **The code was written by AI.** I built this together with Claude (Anthropic) in Claude Code. I described what I wanted and gave feedback on every render, Claude wrote and changed the code. A few example prompts are at the end of this README.
@@ -22,11 +22,11 @@ The script behind the network diagram of my homelab that I posted on r/homelab. 
 
 ## How it works
 
-- Each **site** is a directory under `sites/` holding everything about one place: `site.yaml` (everything the picture shows: VLANs, devices, switch ports, port forwards, hardware, containers, pools), `layout.py` (a complete standalone script: where every box and cable goes, the drawing itself, the PNG export) and `out/` (the pictures).
+- Each **site** is a directory under `sites/` holding everything about one place: `site.en.yaml` (everything the picture shows: VLANs, devices, switch ports, port forwards, hardware, containers, pools), `layout.py` (a complete standalone script: where every box and cable goes, the drawing itself, the PNG export) and `out/` (the pictures).
 - Each `layout.py` is self-contained — it knows its own directory and imports nothing from the other sites. Changing one site cannot break another, which is the point: a layout is hand-placed for exactly one network.
 - `build.py` only finds the sites and runs them; `python3 sites/<name>/layout.py` does the same thing directly.
-- **Languages:** the picture is English by default. A site can ship a `site.zh.yaml` next to its `site.yaml`, and `--lang zh` renders that instead (`out/<site>-zh.png`). Interface labels this layout draws itself live in a small `UI` table at the top of `layout.py`; everything else is content. There is no partial translation: a language either has its own complete content file or the site says it does not.
-- **Redaction:** by default the real domain is replaced with `redacted.com` and SSIDs get generic names, so the PNG can be posted publicly. `--unredacted` renders a private version with the real values from `site.yaml`.
+- **Languages:** the picture is English by default. A site can ship a `site.zh.yaml` next to its `site.en.yaml`, and `--lang zh` renders that instead (`out/<site>-zh.png`). Interface labels this layout draws itself live in a small `UI` table at the top of `layout.py`; everything else is content. There is no partial translation: a language either has its own complete content file or the site says it does not.
+- **Redaction:** by default the real domain is replaced with `redacted.com` and SSIDs get generic names, so the PNG can be posted publicly. `--unredacted` renders a private version with the real values from `site.en.yaml`.
 
 ## Requirements
 
@@ -46,26 +46,26 @@ One directory per place, and everything about that place inside it:
 ```
 sites/
   cbny/                   the flat I live in now (春波南苑)
-    site.yaml             content: router, four clients, tailnet, network table
+    site.en.yaml             content: router, four clients, tailnet, network table
     site.zh.yaml          the same content in Chinese
     layout.py             self-contained script: coordinates + drawing + PNG export
     out/                  cbny.svg + .png (and -zh.* for Chinese)
   hkzn/                   the office segment: 12 clients found by sweeping the /24
-    site.yaml             content: gateway, 12 hosts, probe log, egress + overlays
+    site.en.yaml             content: gateway, 12 hosts, probe log, egress + overlays
     site.zh.yaml          the same content in Chinese
     layout.py             a client grid instead of a device row
     out/                  hkzn.svg + .png (and -zh.* for Chinese)
   origin/                 the upstream lab, kept as the sample of the full schema
-    site.yaml             content: 7 VLANs, switch ports, Proxmox, DMZ, pools
+    site.en.yaml             content: 7 VLANs, switch ports, Proxmox, DMZ, pools
     layout.py             self-contained script: the full panorama
     out/                  origin.svg + .png
 build.py                  runs one site, or lists them
 icons/, fetch_icons.py    the shared bits: third-party logos, downloaded once
 ```
 
-Each `sites/<name>/layout.py` is a full program, not a plugin: it reads the `site.yaml` next to it, draws, and writes `out/`. Nothing is shared between sites except the icons and the fonts, so you can rewrite one household's diagram without thinking about the other, and a copied directory still works on its own.
+Each `sites/<name>/layout.py` is a full program, not a plugin: it reads the `site.en.yaml` next to it, draws, and writes `out/`. Nothing is shared between sites except the icons and the fonts, so you can rewrite one household's diagram without thinking about the other, and a copied directory still works on its own.
 
-Content and layout are separate *files* because they fail differently — a wrong fact is a `site.yaml` edit, a box that does not fit is a `layout.py` edit — but they are never separate *directories*. Anything in a `site.yaml` that is not verified is labelled as unknown rather than invented.
+Content and layout are separate *files* because they fail differently — a wrong fact is a `site.en.yaml` edit, a box that does not fit is a `layout.py` edit — but they are never separate *directories*. Anything in a `site.en.yaml` that is not verified is labelled as unknown rather than invented.
 
 Adding a place copies a directory, so you also get a layout to start from:
 
@@ -96,15 +96,15 @@ The service icons are **not** in this repo, `fetch_icons.py` downloads them from
 
 ## Making it your own
 
-1. `cp -r sites/origin sites/<your-place>` (full panorama) or `cp -r sites/cbny sites/<your-place>` (flat home network), then edit the `site.yaml` in it. Texts, IPs, ports, VLAN colors and the container groups come from that file.
+1. `cp -r sites/origin sites/<your-place>` (full panorama) or `cp -r sites/cbny sites/<your-place>` (flat home network), then edit the `site.en.yaml` in it. Texts, IPs, ports, VLAN colors and the container groups come from that file.
 2. Look at the render. Whatever doesn't fit is the `layout.py` next to it: in the flat layout the chain from the cloud down to the device row is placed by `RY`, `LAN_X`, `DY`; in the full one the top part (cloud, ISP router, firewall, switch, device row) and the column split inside the server card are coordinates there too (search for `fy, fh`, `ox, oy`, `bx, by`, `DY`, `MAD = …`).
-3. New icons: drop an SVG into `icons/` and use its file name in the `site.yaml`.
+3. New icons: drop an SVG into `icons/` and use its file name in the `site.en.yaml`.
 
 ## Using it with Claude Code
 
 The repo contains a [`CLAUDE.md`](CLAUDE.md) with everything an AI agent needs to adapt it to your lab: how the code is structured, which parts of the layout are hardcoded, the questions to ask about your network, the render-and-check loop, and the design rules this diagram follows.
 
-Clone the repo, open it with [Claude Code](https://claude.com/claude-code) and say something like *"help me make this diagram for my homelab"*. It will interview you about your network (or read your docs if you have some), write `sites/<name>/site.yaml`, adapt the layout and iterate on the render with you. Other agents can use the same file as context.
+Clone the repo, open it with [Claude Code](https://claude.com/claude-code) and say something like *"help me make this diagram for my homelab"*. It will interview you about your network (or read your docs if you have some), write `sites/<name>/site.en.yaml`, adapt the layout and iterate on the render with you. Other agents can use the same file as context.
 
 ## How it was made
 

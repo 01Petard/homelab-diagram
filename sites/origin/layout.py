@@ -5,7 +5,7 @@
 
 The layout that shipped with the repo: edge chain (ONT → firewall → core switch),
 the switch port row, the Proxmox card with its hardware, the DMZ containers, the
-TrueNAS pools and the media pipeline. Content comes from site.yaml in this
+TrueNAS pools and the media pipeline. Content comes from site.en.yaml in this
 directory, the positions are hand-placed below. Self-contained apart from the icons
 and the fonts; use it as the starting point for a lab of your own.
 """
@@ -17,7 +17,7 @@ import sys
 
 import yaml
 
-SITE = pathlib.Path(__file__).resolve().parent          # this directory: site.yaml and out/ live here
+SITE = pathlib.Path(__file__).resolve().parent          # this directory: site.en.yaml and out/ live here
 ROOT = SITE.parent.parent                               # repo root: the shared icons are there
 inventory = None
 for i, arg in enumerate(sys.argv[1:], 1):
@@ -29,7 +29,7 @@ for i, arg in enumerate(sys.argv[1:], 1):
         inventory = arg.split("=", 1)[1]
         if not inventory:
             sys.exit("--inventory needs a file path")
-CFG = pathlib.Path(inventory) if inventory is not None else SITE / "site.yaml"
+CFG = pathlib.Path(inventory) if inventory is not None else SITE / "site.en.yaml"
 if not CFG.is_file():
     sys.exit(f"inventory not found: {CFG}")
 INV = yaml.safe_load(CFG.read_text())

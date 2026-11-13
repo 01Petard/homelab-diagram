@@ -7,7 +7,7 @@
 Internet → YouHua gateway (ONT + router + AP) → the segment, with every host the
 sweep found drawn as its own card. Everything comes from probes: no device here is
 invented, and unnamed hosts are labelled "unknown host" instead of being guessed.
-Content comes from site.yaml (English) or site.zh.yaml (Chinese) in this directory,
+Content comes from site.en.yaml (English) or site.zh.yaml (Chinese) in this directory,
 the positions are hand-placed below. Self-contained: nothing outside this directory
 except the icons and the fonts is needed to draw it, so it can be edited without
 touching any other site.
@@ -21,7 +21,7 @@ import sys
 
 import yaml
 
-SITE = pathlib.Path(__file__).resolve().parent          # this directory: site.yaml and out/ live here
+SITE = pathlib.Path(__file__).resolve().parent          # this directory: site.en.yaml and out/ live here
 ROOT = SITE.parent.parent                               # repo root: the shared icons are there
 ICONS = ROOT / "icons"
 OUT = SITE / "out"
@@ -64,7 +64,7 @@ for i, arg in enumerate(sys.argv[1:], 1):
         inventory = arg.split("=", 1)[1]
         if not inventory:
             sys.exit("--inventory needs a file path")
-CFG = SITE / ("site.yaml" if LANG == "en" else f"site.{LANG}.yaml")
+CFG = SITE / f"site.{LANG}.yaml"
 if inventory is not None:
     CFG = pathlib.Path(inventory)
 if not CFG.is_file():
@@ -135,7 +135,7 @@ if LANG == "zh":
     CJK = ", PingFang SC, Noto Sans CJK SC, Hiragino Sans GB, sans-serif"
     SANS, MONO = SANS + CJK, MONO + CJK
 
-# Interface strings. The content is in site.yaml / site.zh.yaml; these are the
+# Interface strings. The content is in site.en.yaml / site.zh.yaml; these are the
 # labels this layout draws itself, so they live with the coordinates.
 UI = {
     "en": dict(

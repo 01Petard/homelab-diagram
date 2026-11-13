@@ -20,7 +20,7 @@ SOURCES = [
     "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/main/svg/{}.svg",
 ]
 
-# local file name (as used in site.yaml / the layouts) -> dashboard-icons name
+# local file name (as used in site.en.yaml / the layouts) -> dashboard-icons name
 ICON_MAP = {
     "actual": "actual-budget", "adguard": "adguard-home", "alloy": "alloy", "android": "android",
     "authentik": "authentik", "backblaze": "backblaze", "bazarr": "bazarr", "cinny": "cinny",

@@ -1,15 +1,15 @@
 # CLAUDE.md – adapting this diagram to someone else's homelab
 
-You are helping a user turn **their** homelab into a diagram like `docs/example.png`. The repo ships with the original author's lab (`sites/origin/`) and a trimmed single-segment example (`sites/cbny/`). Your job: find out what their lab looks like, write `sites/<name>/site.yaml` and the matching `sites/<name>/layout.py`, and iterate on the render with them until they are happy.
+You are helping a user turn **their** homelab into a diagram like `docs/example.png`. The repo ships with the original author's lab (`sites/origin/`) and a trimmed single-segment example (`sites/cbny/`). Your job: find out what their lab looks like, write `sites/<name>/site.en.yaml` and the matching `sites/<name>/layout.py`, and iterate on the render with them until they are happy.
 
-Start by telling the user briefly how this works (interview → site.yaml → layout → render/feedback rounds), then begin the interview. Don't ask everything at once.
+Start by telling the user briefly how this works (interview → site.en.yaml → layout → render/feedback rounds), then begin the interview. Don't ask everything at once.
 
 ## How the repo works
 
-- One **site** = one directory under `sites/`, holding `site.yaml` (all content), `layout.py` (a complete standalone script: coordinates, drawing, PNG export) and `out/` (its renders). Copying a site directory gives you both files to start from.
-- `site.yaml` – all content: VLANs, devices, switch ports, port forwards, server hardware, VMs/containers, storage pools, the media pipeline.
-- **Language** – English is the default and reads `site.yaml`. A site that should also render in Chinese ships `site.zh.yaml` with the same schema; `--lang zh` renders that to `out/<name>-zh.png`. Interface labels the layout draws itself (panel headings, legend entries, "unknown host") live in the `UI` dict at the top of `layout.py`, keyed `en`/`zh` — that is the only place those need translating. Keep a translation whole: a half-translated picture is worse than an English one.
-- `layout.py` – self-contained: it locates its own directory, reads the `site.yaml` next to it, draws an SVG with absolute coordinates (logical canvas `W = 2400`, height `H`), embeds icons as base64 and converts to PNG with `rsvg-convert -z 1.6` (so PNG pixels = SVG units × 1.6). Nothing is imported from the other sites; shared code would be duplicated, and that is deliberate.
+- One **site** = one directory under `sites/`, holding `site.en.yaml` (all content), `layout.py` (a complete standalone script: coordinates, drawing, PNG export) and `out/` (its renders). Copying a site directory gives you both files to start from.
+- `site.en.yaml` – all content: VLANs, devices, switch ports, port forwards, server hardware, VMs/containers, storage pools, the media pipeline.
+- **Language** – English is the default and reads `site.en.yaml`. A site that should also render in Chinese ships `site.zh.yaml` with the same schema; `--lang zh` renders that to `out/<name>-zh.png`. Interface labels the layout draws itself (panel headings, legend entries, "unknown host") live in the `UI` dict at the top of `layout.py`, keyed `en`/`zh` — that is the only place those need translating. Keep a translation whole: a half-translated picture is worse than an English one.
+- `layout.py` – self-contained: it locates its own directory, reads the `site.en.yaml` next to it, draws an SVG with absolute coordinates (logical canvas `W = 2400`, height `H`), embeds icons as base64 and converts to PNG with `rsvg-convert -z 1.6` (so PNG pixels = SVG units × 1.6). Nothing is imported from the other sites; shared code would be duplicated, and that is deliberate.
 - `build.py` – entry point that finds the sites and runs their `layout.py`; `python3 build.py` alone lists them. `python3 sites/<name>/layout.py` renders one directly.
 - `sites/origin/layout.py` – the panorama layout, and the schema reference for every field. `sites/cbny/layout.py` – the trimmed layout for a flat home network.
 - `fetch_icons.py` – downloads service icons into `icons/` (dashboard-icons). Own glyphs `icons/glyph-*.svg` are in the repo.
@@ -55,7 +55,7 @@ Useful read-only commands if you have access (ask first): Proxmox `pct list`, `q
 
 ## The work loop
 
-1. `cp -r sites/origin sites/<name>` (full panorama) or `cp -r sites/cbny sites/<name>` (flat home network), then write their lab into `sites/<name>/site.yaml` (keep the schema; extend it when needed and teach the layout the new fields).
+1. `cp -r sites/origin sites/<name>` (full panorama) or `cp -r sites/cbny sites/<name>` (flat home network), then write their lab into `sites/<name>/site.en.yaml` (keep the schema; extend it when needed and teach the layout the new fields).
 2. Adapt `sites/<name>/layout.py`: decide which panels exist, adjust the hardcoded positions above, remove sections they don't need. It is a standalone script — keep it that way rather than importing helpers from another site.
 3. `python3 fetch_icons.py` (add new icons to `ICON_MAP` first: local name → name in [dashboard-icons](https://github.com/homarr-labs/dashboard-icons); dark icons need a `-light` variant or an entry in `RECOLOR`).
 4. `python3 build.py <name>`, then **look at `sites/<name>/out/<name>.png` yourself** before showing it. Zoom into busy areas: `magick sites/<name>/out/<name>.png -crop 1400x600+X+Y +repage -resize 70% /tmp/crop.png` (X/Y in PNG pixels = SVG coordinates × 1.6). Look for overlapping text, cables crossing cards, text running out of boxes, empty gaps.

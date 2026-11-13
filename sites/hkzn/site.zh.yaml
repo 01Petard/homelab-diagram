@@ -1,4 +1,4 @@
-# 中文版内容，与 site.yaml 同结构：英文版默认渲染 site.yaml，`--lang zh` 渲染本文件。
+# 中文版内容，与 site.en.yaml 同结构：英文版默认渲染 site.en.yaml，`--lang zh` 渲染本文件。
 # 每个值都来自 2026-11-11 在本机做的只读探测：/24 ping 扫描、TCP 连接扫描、网关反向 DNS、
 # SSH / HTTP banner、ARP 表查网卡厂商。未使用任何凭据，未改动任何设备。
 # 探测无法确定的项一律写「未知」，不猜。

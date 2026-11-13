@@ -9,7 +9,7 @@
     python3 build.py --all [--unredacted] [--lang zh]
 
 A **site** is a directory under `sites/` that keeps everything about one place
-together: the content (`site.yaml`), the hand-placed coordinates for that network
+together: the content (`site.en.yaml`), the hand-placed coordinates for that network
 (`layout.py`) and the pictures (`out/`). Adding a place is therefore a new directory,
 not a flag — and editing a diagram means editing the one layout next to its data.
 
@@ -28,16 +28,16 @@ SITES = ROOT / "sites"
 
 
 def read_site(site_dir):
-    """The site's site.yaml and its layout.py, both required."""
-    cfg_path = site_dir / "site.yaml"
+    """The site's site.en.yaml and its layout.py, both required."""
+    cfg_path = site_dir / "site.en.yaml"
     layout = site_dir / "layout.py"
     if not cfg_path.is_file() or not layout.is_file():
-        sys.exit(f"{site_dir.relative_to(ROOT)}: needs both site.yaml and layout.py")
+        sys.exit(f"{site_dir.relative_to(ROOT)}: needs both site.en.yaml and layout.py")
     return yaml.safe_load(cfg_path.read_text()) or {}, layout
 
 
 def find_sites():
-    return sorted(p for p in SITES.iterdir() if (p / "site.yaml").is_file())
+    return sorted(p for p in SITES.iterdir() if (p / "site.en.yaml").is_file())
 
 
 def show_sites():
@@ -99,7 +99,7 @@ def main():
         sys.exit("--mode light is currently supported only for hkzn; select hkzn explicitly")
 
     if not targets:
-        sys.exit(f"no sites under {SITES.relative_to(ROOT)}/ — add one with site.yaml + layout.py, see README.md")
+        sys.exit(f"no sites under {SITES.relative_to(ROOT)}/ — add one with site.en.yaml + layout.py, see README.md")
 
     if any(f == "--inventory" or f.startswith("--inventory=") for f in flags) and len(targets) != 1:
         sys.exit("--inventory requires exactly one site (layouts have different schemas)")
