@@ -1,182 +1,255 @@
 # homelab-diagram
 
-The script behind the network diagram of my homelab that I posted on r/homelab. It turns a YAML file describing the lab into a big SVG/PNG diagram in the style of the diagrams you see on r/homelab.
+[English](README.md) · [简体中文](README.zh-CN.md)
+
+Render a homelab inventory as an SVG and PNG network diagram. The `origin` example
+includes an ISP router, firewall, VLAN switch, Proxmox guests, TrueNAS pools,
+public services and a media workflow.
 
 ![Example output](docs/example.png)
 
-> [!IMPORTANT]
-> **This is not a general tool.** The *content* comes from `site.en.yaml`, but the *layout* (where every box, port and cable goes) is hand-placed in that site's `layout.py` for exactly one network. If you want to use it for yours, expect to move coordinates around in the code. Think of it as a starting point, not a finished product.
+The upstream project was developed with Claude Code through repeated rendering
+and visual feedback. This version keeps that approach: **YAML describes the
+network; Python places the cards and cables.** Changing an inventory does not
+automatically redesign the layout. AI can help you adapt it and check the result.
 
-> [!NOTE]
-> **The code was written by AI.** I built this together with Claude (Anthropic) in Claude Code. I described what I wanted and gave feedback on every render, Claude wrote and changed the code. A few example prompts are at the end of this README.
+## Example files
 
-## What it shows
+Only the public `origin` example is described here.
 
-- the path from the internet through the ISP router (with its real ports) and the firewall to the core switch
-- every switch port with the VLANs on it (tall bar = untagged, short bars = tagged)
-- cables whose **line width is the negotiated link speed** (10G / 2.5G / 1G / 100M), trunks drawn as a white cable with a dark core
-- the devices with name, type, model, IP · hostname and OS
-- the Proxmox host with its hardware, the VMs/CTs outside the DMZ, the TrueNAS pools (disks, vdevs, usage) and every DMZ container with its CT ID, IP and hostname
-- containers that run several apps as one card with a row per app
-- what's open to the internet, a legend, the networks table and a small "media pipeline" explainer
+```text
+sites/
+  origin/
+    site.en.yaml          English inventory
+    site.zh.yaml          Chinese inventory with the same network facts
+    layout.py             Standalone layout, SVG drawing and PNG conversion
+    out/                  Generated SVG and PNG files (ignored by Git)
+build.py                  Site selection and command-line entry point
+fetch_icons.py            Download third-party service icons
+icons/                    Bundled glyphs and downloaded service icons
+pyproject.toml, uv.lock    Python dependencies and lockfile
+CLAUDE.md                 Context for AI-assisted customization
+```
 
-## How it works
-
-- Each **site** is a directory under `sites/` holding everything about one place: `site.en.yaml` (everything the picture shows: VLANs, devices, switch ports, port forwards, hardware, containers, pools), `layout.py` (a complete standalone script: where every box and cable goes, the drawing itself, the PNG export) and `out/` (the pictures).
-- Each `layout.py` is self-contained — it knows its own directory and imports nothing from the other sites. Changing one site cannot break another, which is the point: a layout is hand-placed for exactly one network.
-- `build.py` only finds the sites and runs them; `python3 sites/<name>/layout.py` does the same thing directly.
-- **Languages:** the picture is English by default. A site can ship a `site.zh.yaml` next to its `site.en.yaml`, and `--lang zh` renders that instead (`out/<site>-zh.png`). Interface labels this layout draws itself live in a small `UI` table at the top of `layout.py`; everything else is content. There is no partial translation: a language either has its own complete content file or the site says it does not.
-- **Redaction:** by default the real domain is replaced with `redacted.com` and SSIDs get generic names, so the PNG can be posted publicly. `--unredacted` renders a private version with the real values from `site.en.yaml`.
+Keep IPs, hostnames, IDs, ports and topology consistent across the two language
+files. Interface text is translated in the layout's `UI` configuration. Product
+names and technical identifiers generally keep their original spelling.
 
 ## Requirements
 
-- Python 3.11+ with **PyYAML** and **Pillow** (Pillow is optional, but makes label widths exact). Both are declared in `pyproject.toml`, so [uv](https://docs.astral.sh/uv/) installs them for you — see below.
-- **rsvg-convert** (librsvg) for the PNG
-- the fonts **Fira Sans** and **Fira Code** installed (found via fontconfig)
-- only for `--lang zh`: a CJK font — **PingFang SC** on macOS, **Noto Sans CJK SC** on Linux. The layout puts it behind Fira in the font stack, so latin stays Fira and Chinese is handed to the system font per character; without one every Chinese glyph becomes an empty box. Chinese text is measured at one em per character, so the boxes still fit.
+- **Git**, if cloning the repository.
+- **[uv](https://docs.astral.sh/uv/getting-started/installation/)** for Python and dependencies.
+- **Python 3.11+**; uv can install a compatible interpreter if one is unavailable.
+- **librsvg**, providing the `rsvg-convert` command used for PNG export.
+- **fontconfig**, providing `fc-match` for font measurement.
+- **Fira Sans** and **Fira Code** fonts. See [Fira](https://github.com/mozilla/Fira)
+  and [Fira Code](https://github.com/tonsky/FiraCode).
+- For Chinese: **PingFang SC** on macOS or **Noto Sans CJK SC** on Linux.
 
-On Arch/CachyOS: `pacman -S python-yaml python-pillow librsvg ttf-fira-sans ttf-fira-code`
-On Debian/Ubuntu: `apt install python3-yaml python3-pil librsvg2-bin fonts-firacode` plus Fira Sans
-On macOS: `brew install librsvg`, then install the Fira fonts from [mozilla/Fira](https://github.com/mozilla/Fira) (e.g. `brew install --cask font-fira-code font-fira-sans`, if your Homebrew has them).
+uv installs PyYAML and Pillow from the project's dependency declarations. It does
+**not** install librsvg, fontconfig or system fonts.
 
-## Structure
-
-One directory per place, and everything about that place inside it:
-
-```
-sites/
-  cbny/                   the flat I live in now (春波南苑)
-    site.en.yaml             content: router, four clients, tailnet, network table
-    site.zh.yaml          the same content in Chinese
-    layout.py             self-contained script: coordinates + drawing + PNG export
-    out/                  cbny.svg + .png (and -zh.* for Chinese)
-  hkzn/                   the office segment: 12 clients found by sweeping the /24
-    site.en.yaml             content: gateway, 12 hosts, probe log, egress + overlays
-    site.zh.yaml          the same content in Chinese
-    layout.py             a client grid instead of a device row
-    out/                  hkzn.svg + .png (and -zh.* for Chinese)
-  origin/                 the upstream lab, kept as the sample of the full schema
-    site.en.yaml             content: 7 VLANs, switch ports, Proxmox, DMZ, pools
-    layout.py             self-contained script: the full panorama
-    out/                  origin.svg + .png
-build.py                  runs one site, or lists them
-icons/, fetch_icons.py    the shared bits: third-party logos, downloaded once
-```
-
-Each `sites/<name>/layout.py` is a full program, not a plugin: it reads the `site.en.yaml` next to it, draws, and writes `out/`. Nothing is shared between sites except the icons and the fonts, so you can rewrite one household's diagram without thinking about the other, and a copied directory still works on its own.
-
-Content and layout are separate *files* because they fail differently — a wrong fact is a `site.en.yaml` edit, a box that does not fit is a `layout.py` edit — but they are never separate *directories*. Anything in a `site.en.yaml` that is not verified is labelled as unknown rather than invented.
-
-Adding a place copies a directory, so you also get a layout to start from:
+On macOS with Homebrew:
 
 ```bash
-cp -r sites/origin sites/mylab      # panorama + example content, then edit both files
-uv run build.py mylab
+brew install uv librsvg fontconfig
+brew install --cask font-fira-sans font-fira-code
 ```
 
-## Usage
+On Linux, install uv using its official installation guide, then install librsvg,
+fontconfig and the fonts with your distribution's package manager. On
+Debian/Ubuntu, the command package for librsvg is `librsvg2-bin`. Windows users can
+use WSL2 and follow the Linux setup; native Windows rendering is not verified here.
 
-With [uv](https://docs.astral.sh/uv/) (creates `.venv` and installs the pinned dependencies from `uv.lock`):
+After installing fonts, verify that fontconfig selects the intended families,
+not an unrelated fallback:
 
 ```bash
-uv sync                        # once: create .venv, install PyYAML + Pillow
-uv run fetch_icons.py          # downloads the service icons into icons/ (once)
-
-uv run build.py                # list the sites and what has been rendered so far
-uv run build.py cbny           # → sites/cbny/out/cbny.svg + .png
-uv run build.py cbny --lang zh                # → cbny-zh.svg + .png, from site.zh.yaml
-uv run build.py cbny --unredacted            # same, with the real domain / SSIDs
-uv run build.py hkzn --lang zh      # → hkzn-zh.svg + .png, from site.zh.yaml
-uv run build.py --all          # every site
+uv --version
+rsvg-convert --version
+fc-match 'Fira Sans'
+fc-match 'Fira Code'
+# For Chinese, also check your installed CJK font, for example:
+fc-match 'Noto Sans CJK SC'
 ```
 
-Or with a plain Python install of PyYAML: the same commands with `python3` instead of `uv run`.
+## First run with uv
 
-The service icons are **not** in this repo, `fetch_icons.py` downloads them from [homarr-labs/dashboard-icons](https://github.com/homarr-labs/dashboard-icons). Only my own small glyphs (`icons/glyph-*.svg`: CPU, RAM, SSD, …) are included.
+Open a terminal in the repository root, where `build.py` and `pyproject.toml` live.
+If you have not cloned it, use your chosen repository URL and check out the branch
+containing this README. No branch switch is needed for an already-open checkout.
 
-## Making it your own
+```bash
+# Create .venv and install the locked Python dependencies.
+uv sync --locked
 
-1. `cp -r sites/origin sites/<your-place>` (full panorama) or `cp -r sites/cbny sites/<your-place>` (flat home network), then edit the `site.en.yaml` in it. Texts, IPs, ports, VLAN colors and the container groups come from that file.
-2. Look at the render. Whatever doesn't fit is the `layout.py` next to it: in the flat layout the chain from the cloud down to the device row is placed by `RY`, `LAN_X`, `DY`; in the full one the top part (cloud, ISP router, firewall, switch, device row) and the column split inside the server card are coordinates there too (search for `fy, fh`, `ox, oy`, `bx, by`, `DY`, `MAD = …`).
-3. New icons: drop an SVG into `icons/` and use its file name in the `site.en.yaml`.
+# Download third-party icons. Internet access is required on the first run.
+uv run python fetch_icons.py
 
-## Using it with Claude Code
-
-The repo contains a [`CLAUDE.md`](CLAUDE.md) with everything an AI agent needs to adapt it to your lab: how the code is structured, which parts of the layout are hardcoded, the questions to ask about your network, the render-and-check loop, and the design rules this diagram follows.
-
-Clone the repo, open it with [Claude Code](https://claude.com/claude-code) and say something like *"help me make this diagram for my homelab"*. It will interview you about your network (or read your docs if you have some), write `sites/<name>/site.en.yaml`, adapt the layout and iterate on the render with you. Other agents can use the same file as context.
-
-## How it was made
-
-I had seen these diagrams on r/homelab for years and always wanted one for my own network. My setup was documented in an Obsidian vault (written by another Claude Code session, checked against the live systems), so the workflow was:
-
-1. **Gathering the facts.** Claude Code read the documentation and filled the gaps with read-only checks on the live systems: link speeds from the switch, disk models and pool usage from TrueNAS, the router model from its info page, hostnames from DNS, the containers running in each CT.
-2. **First draft.** Claude wrote `inventory.yaml` and `build.py`, rendered the PNG and looked at the image itself (plus zoomed-in crops) to catch overlaps before showing it to me.
-3. **Iterating.** Then it was me giving feedback, Claude changing the code, re-rendering and checking again, about 60 rounds. Most of the design decisions (folder-shaped device cards, line width = speed, CT on top and IP below, no internal ports, …) came out of that back and forth.
-4. **Publishing.** For this repo Claude made a cleaned-up copy (example domain, generic SSIDs), added the icon download script and checked that a fresh clone renders exactly the posted image.
-
-Tools: Claude Code with Claude Opus 5.5, Python, librsvg, Pillow.
-
-## Example prompts
-
-About 60 prompts went into this. Three typical ones, to give an idea of how the back and forth looked:
-
-**Getting started**
-> Do you know the network diagrams people post on r/homelab? I'd like one for my own network. My setup is documented in my Obsidian vault, read it and check the live systems for anything that's missing.
-
-**Design feedback**
-> Use the line thickness to show the link speed and put a small speed label where each cable reaches a device. Also remove the interface names like em0 or igc0, nobody needs them on a diagram.
-
-**Fixing the facts**
-> That's not quite right yet: there are two shares. qBittorrent only downloads into the Torrents share, and when a download is done Sonarr/Radarr copy the file with the right name into the Media share. qBittorrent has no access to the Media share at all.
-
-## Credits & license
-
-- Code and the glyph icons in `icons/`: MIT, see [LICENSE](LICENSE).
-- Service icons: [homarr-labs/dashboard-icons](https://github.com/homarr-labs/dashboard-icons), downloaded by `fetch_icons.py`, not part of this repo. The logos belong to their projects.
-- Fonts: [Fira Sans / Fira Code](https://github.com/mozilla/Fira) (SIL Open Font License), not included.
-
-### Local rendering improvements
-
-Adapted from [upstream PR #1](https://github.com/Goblinmine/homelab-diagram/pull/1),
-while retaining independent site layouts and English/Chinese inventories:
-
-```sh
-uv run python build.py cbny --lang zh
-uv run python build.py origin --inventory /path/to/alternative.yaml
-uv run python -m unittest discover -s tests -v
+# Render the origin example in English and Chinese.
+uv run python build.py origin --lang en
+uv run python build.py origin --lang zh
 ```
 
-Canvas heights follow panel bottoms and hardware text fits tile widths. The origin
-panorama also supports optional ISP stubs, PPSK SSIDs, guest VM/node/VLAN labels,
-switch port labels and pool usage warnings/wrapping. See `CLAUDE.md` for fields.
-Inventory overrides require exactly one site and that site's existing schema.
+You do not need to activate `.venv` manually. [uv sync and uv run](https://docs.astral.sh/uv/concepts/projects/sync/)
+manage the project environment. Reuse the render commands after editing the inventory
+or layout; icons only need downloading again if missing or new ones are required.
 
-### hkzn display modes
+The generated files are:
 
-```sh
-uv run python build.py hkzn                           # English, dark
-uv run python build.py hkzn --lang zh --mode light    # Chinese, light
-uv run python build.py hkzn --lang=en --mode=light    # English, light
+```text
+sites/origin/out/origin-en-dark.svg
+sites/origin/out/origin-en-dark.png
+sites/origin/out/origin-zh-dark.svg
+sites/origin/out/origin-zh-dark.png
 ```
 
-`--mode` accepts `dark` (default) or `light`. Light mode currently supports hkzn
-only; cbny and origin retain their existing rendering behavior. Language and mode
-are independent. Both modes use the same font families and layout, with Chinese
-font fallback selected by language. Light mode adjusts surfaces, text, network
-accents and the project's glyph icons without modifying inventories or icon files.
+`origin` currently supports **dark mode only**. `--mode dark` is accepted by the
+entry point, but `--mode light` is not supported for this example. The image at the
+top is a historical preview; the commands above generate the current version.
 
-hkzn outputs always include language and mode: `hkzn-en-dark.svg` / `.png`,
-`hkzn-zh-dark.svg` / `.png`, `hkzn-en-light.svg` / `.png` and
-`hkzn-zh-light.svg` / `.png`, under `sites/hkzn/out/`. `--unredacted` appends
-`-unredacted` after the mode. Legacy hkzn filenames are no longer generated;
-previously generated files are left untouched.
+## Useful commands
 
-### origin Chinese inventory
+| Purpose | Command |
+|---|---|
+| Default English render | `uv run python build.py origin` |
+| Chinese render | `uv run python build.py origin --lang zh` |
+| Chinese render with original domain and SSIDs | `uv run python build.py origin --lang zh --unredacted` |
+| Try an alternative inventory | `uv run python build.py origin --inventory /path/to/alternative.yaml` |
+| Chinese UI with an alternative inventory | `uv run python build.py origin --lang zh --inventory /path/to/alternative.zh.yaml` |
+| Run the layout directly | `uv run python sites/origin/layout.py --lang zh` |
+| Run regression tests after code changes | `uv run python -m unittest discover -s tests -v` |
 
-`sites/origin/site.zh.yaml` provides the complete Chinese panorama inventory.
-Render it with `uv run python build.py origin --lang zh`; English remains the default.
-Origin outputs are named `origin-<en|zh>-dark[-unredacted].svg` / `.png`.
-The layout keeps translated interface labels and CJK font fallback alongside its
-coordinates. DMZ groups may use a stable `key` for column placement and a translated
-`name` for display. Addresses, service identifiers and redaction rules stay unchanged.
+An alternative inventory must match the origin schema and can only target one
+site at a time. It replaces the selected language's content file; `--lang` still
+selects the interface language and font stack. It writes to the usual output names,
+so save an output copy first if comparing different inventories.
+
+## What redaction does
+
+The origin inventory enables domain and SSID redaction by default:
+
+- The configured domain is replaced with `redact.domain_placeholder`.
+- The title uses `meta.title_redacted` when domain redaction is enabled.
+- SSIDs use each entry's `redacted` label instead of its `name`.
+
+`--unredacted` bypasses those replacements and adds `-unredacted` to the output
+name, for example `origin-zh-dark-unredacted.png`.
+
+**IP addresses, MAC addresses, device names, usernames/watermarks and arbitrary
+notes are not automatically hidden.** Inspect both the SVG text and the PNG before
+sharing. Redaction behavior depends on the inventory settings; it is not a promise
+that an image is safe to publish.
+
+## Let AI run the complete workflow
+
+Open the repository in an AI coding tool with terminal and file access, such as
+Codex or Claude Code. The AI needs permission to run commands and, when needed,
+install system dependencies. It should read the actual code and treat `CLAUDE.md`
+as project context. The prompts below are instructions you can copy into that tool;
+they do not execute just by reading this README.
+
+### One prompt: get the example running
+
+```text
+Help me run this repository from setup through verified output. Execute the work,
+not just a list of commands for me to run.
+
+1. Locate the repository. If it is not open or cloned, ask for the repository URL
+   and destination directory. Inspect README.md, pyproject.toml, uv.lock,
+   build.py, fetch_icons.py, and the origin layout and inventories. Check Git
+   status and keep the current branch and existing edits.
+2. Detect my OS. Check uv, Python >=3.11, rsvg-convert, fc-match, Fira Sans,
+   Fira Code and a Chinese font. Explain any missing system dependencies and
+   install them using the appropriate official/package-manager method within
+   the environment's authorization rules. Do not install unrelated tools or
+   change dependency versions to work around a missing system package.
+3. Run `uv sync --locked`, then `uv run python fetch_icons.py`. If downloads or
+   installation fail, inspect the actual error, fix what you can and retry.
+   Never claim a step passed when it did not.
+4. Run `uv run python build.py origin --lang en` and
+   `uv run python build.py origin --lang zh`. Keep default redaction enabled.
+   Do not request light mode: origin does not currently support it.
+5. Open both generated PNGs and inspect the image, including crops of dense
+   sections. Check for missing glyphs/icons, overlapping text and clipped cards
+   or cables. Fix rendering defects without changing the example's network facts.
+   If you change code, run the relevant regression tests and render again.
+6. Report the actual commands, output paths, what you checked, and any remaining
+   blocker. Link or display the images. Do not push, publish, probe a real
+   network or modify any network device as part of this example run.
+```
+
+### Follow-up 1: make a diagram of my network
+
+```text
+The origin example renders successfully. Now help me create my own network diagram.
+Read CLAUDE.md for context, but use only origin as the starting template. Ask me for
+my preferred site name, languages, privacy requirements and any existing network
+notes. Ask for missing facts in small rounds: internet/gateway, switches/VLANs,
+clients, servers/guests, storage and public services.
+
+Copy the origin template into a new site directory using my chosen name; do not
+replace origin. Keep example devices out of my final diagram unless I confirm
+that I own them. Mark unknown facts explicitly. Keep bilingual inventories
+consistent if I choose both languages, and retain stable identifiers such as
+DMZ group keys while translating display names.
+
+Adapt layout.py to my actual topology and give the outputs explicit language and
+mode names. Do not assume light mode exists merely because a CLI flag exists.
+Reuse the glyphs and fetch any necessary service icons. Render, inspect the PNG,
+fix overlaps and iterate. Ask for explicit scope and authorization before any
+real network probe; never change router, switch or server settings for drawing.
+Finally give me the images and exact regeneration commands. Do not push or publish.
+```
+
+### Follow-up 2: refine and prepare to share
+
+```text
+Review the latest diagram against my confirmed inventory. Inspect full-size PNGs
+and crops of crowded areas. Fix clipped labels, overlapping cards and ambiguous
+cables while keeping the topology, device facts and language versions consistent.
+
+Generate the default redacted version. Check the SVG and PNG for my real domain,
+SSIDs, addresses, MACs, hostnames and watermark; list anything that still remains
+visible and ask how I want it handled. Do not describe default redaction as hiding
+all private information. Keep the unredacted version separate if I request it.
+Show the result, report the exact commands and file paths, and do not publish it.
+```
+
+## Features and customization boundaries
+
+Line width represents negotiated link speed. Solid cables are physical; dotted
+connections represent tunnels or internet paths. VLAN colors identify networks,
+and the legend explains port ticks, trunks and access links.
+
+The origin template also supports optional inventory fields adapted from
+[upstream PR #1](https://github.com/Goblinmine/homelab-diagram/pull/1): compact ISP
+boxes (`stub`), short switch-port labels (`short`), unknown-VLAN port styling,
+PPSK SSIDs (`vlans`), guest `kind`/`node`/`vlan` labels, and storage usage warnings
+(`warn`, default 85%). Disk groups can wrap, and overflow checks identify sections
+that need more room. See [CLAUDE.md](CLAUDE.md) for the field and layout details.
+
+Canvas height follows panel bottoms, but positions, panel widths and cable routes
+still need site-specific edits. Start from origin and adjust the layout to the
+confirmed topology; a new YAML file alone cannot accommodate every network.
+
+## Troubleshooting
+
+| Symptom | What to check |
+|---|---|
+| `uv` not found | Install uv and reopen the terminal, or check PATH. |
+| `rsvg-convert` not found | Install librsvg; Python packages do not provide it. |
+| Missing icon | Run `uv run python fetch_icons.py`; inspect any reported download failures. |
+| Chinese squares or changed text spacing | Install the correct fonts and verify the families returned by `fc-match`. |
+| Overflow assertion | Adjust the relevant panel dimensions/routes in `layout.py`, then render and inspect again. |
+| `--mode light` fails | Origin currently supports dark mode only. |
+| PNG exists but is stale | Check the command exit status and the explicit language/mode filename. An old file can survive a failed run. |
+
+## Credits and license
+
+- Original project: [Goblinmine/homelab-diagram](https://github.com/Goblinmine/homelab-diagram),
+  developed with Claude Code; this version includes later adaptations.
+- Code and bundled `glyph-*.svg` icons: MIT, see [LICENSE](LICENSE).
+- Downloaded service icons: [homarr-labs/dashboard-icons](https://github.com/homarr-labs/dashboard-icons).
+  Logos belong to their respective projects and are not bundled in this repository.
+- Fonts: Fira Sans and Fira Code, distributed separately under their font licenses.
