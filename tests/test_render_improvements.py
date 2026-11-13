@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 REAL_RUN = subprocess.run
 
 
-def render(site, inventory=None, lang=None):
+def render(site, inventory=None, lang=None, mode=None, unredacted=False):
     with tempfile.TemporaryDirectory() as tmp:
         args = [str(ROOT / 'sites' / site / 'layout.py')]
         if inventory is not None:
@@ -25,6 +25,11 @@ def render(site, inventory=None, lang=None):
             args += ['--inventory', str(cfg)]
         if lang:
             args += ['--lang', lang]
+
+        if mode is not None:
+            args += ['--mode', mode]
+        if unredacted:
+            args += ['--unredacted']
 
         def run(command, *a, **kw):
             if command[0] == 'rsvg-convert':

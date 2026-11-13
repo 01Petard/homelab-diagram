@@ -151,3 +151,23 @@ Canvas heights follow panel bottoms and hardware text fits tile widths. The orig
 panorama also supports optional ISP stubs, PPSK SSIDs, guest VM/node/VLAN labels,
 switch port labels and pool usage warnings/wrapping. See `CLAUDE.md` for fields.
 Inventory overrides require exactly one site and that site's existing schema.
+
+### hkzn display modes
+
+```sh
+uv run python build.py hkzn                           # English, dark
+uv run python build.py hkzn --lang zh --mode light    # Chinese, light
+uv run python build.py hkzn --lang=en --mode=light    # English, light
+```
+
+`--mode` accepts `dark` (default) or `light`. Light mode currently supports hkzn
+only; cbny and origin retain their existing rendering behavior. Language and mode
+are independent. Both modes use the same font families and layout, with Chinese
+font fallback selected by language. Light mode adjusts surfaces, text, network
+accents and the project's glyph icons without modifying inventories or icon files.
+
+hkzn outputs always include language and mode: `hkzn-en-dark.svg` / `.png`,
+`hkzn-zh-dark.svg` / `.png`, `hkzn-en-light.svg` / `.png` and
+`hkzn-zh-light.svg` / `.png`, under `sites/hkzn/out/`. `--unredacted` appends
+`-unredacted` after the mode. Legacy hkzn filenames are no longer generated;
+previously generated files are left untouched.
