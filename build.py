@@ -95,8 +95,8 @@ def main():
         show_sites()
         return
 
-    if mode == "light" and any(site.name != "hkzn" for site in targets):
-        sys.exit("--mode light is currently supported only for hkzn; select hkzn explicitly")
+    if mode == "light" and any(site.name not in ("hkzn", "cbny") for site in targets):
+        sys.exit("--mode light is currently supported only for hkzn and cbny; select a supported site explicitly")
 
     if not targets:
         sys.exit(f"no sites under {SITES.relative_to(ROOT)}/ — add one with site.en.yaml + layout.py, see README.md")

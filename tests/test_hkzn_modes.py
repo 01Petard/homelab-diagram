@@ -1,4 +1,4 @@
-"""Theme behavior, contrast and output naming for hkzn."""
+"""Theme behavior, contrast and output naming for bilingual sites."""
 import base64
 import subprocess
 import sys
@@ -17,9 +17,11 @@ def luminance(color):
 
 
 class ThemeTests(unittest.TestCase):
+    site = "hkzn"
+
     @classmethod
     def setUpClass(cls):
-        cls.renders = {(lang, mode): render('hkzn', lang=lang, mode=mode)
+        cls.renders = {(lang, mode): render(cls.site, lang=lang, mode=mode)
                        for lang in ('en', 'zh') for mode in ('dark', 'light')}
 
     def test_language_and_geometry_are_independent_of_mode(self):
@@ -32,20 +34,20 @@ class ThemeTests(unittest.TestCase):
             text = [[(t.text, t.get('x'), t.get('y'), t.get('font-size'))
                      for t in root.findall('s:text', NS)] for root in roots]
             self.assertEqual(text[0], text[1])
-            self.assertEqual(dark['name'], f'hkzn-{lang}-dark')
-            self.assertEqual(light['name'], f'hkzn-{lang}-light')
+            self.assertEqual(dark['name'], f'{self.site}-{lang}-dark')
+            self.assertEqual(light['name'], f'{self.site}-{lang}-light')
 
     def test_default_is_explicitly_named_dark(self):
-        default = render('hkzn')
-        self.assertEqual(default['name'], 'hkzn-en-dark')
+        default = render(self.site)
+        self.assertEqual(default['name'], f'{self.site}-en-dark')
         self.assertEqual(default['S'].render(), self.renders['en', 'dark']['S'].render())
-        private = render('hkzn', lang='zh', mode='light', unredacted=True)
-        self.assertEqual(private['name'], 'hkzn-zh-light-unredacted')
+        private = render(self.site, lang='zh', mode='light', unredacted=True)
+        self.assertEqual(private['name'], f'{self.site}-zh-light-unredacted')
 
     def test_light_text_and_inventory_accents_have_contrast(self):
         g = self.renders['en', 'light']
         colors = [g[k] for k in ('TEXT', 'MUTED', 'FAINT', 'HWC')]
-        colors += list(g['C'].values()) + [v['color'] for v in g['KIND'].values()]
+        colors += list(g['C'].values()) + [v['color'] for v in g.get('KIND', {}).values()]
         colors += [g['accent']('#ffffff'), g['accent']('#aaffcc')]
         for background in ('bg', 'panel', 'chip', 'hardware_bg', 'cloud', 'lan_bg'):
             for color in colors:
@@ -66,16 +68,20 @@ class ThemeTests(unittest.TestCase):
             self.assertEqual(base64.b64decode(cache['apple']), (ROOT / 'icons/apple.svg').read_bytes())
 
     def test_invalid_or_unsupported_modes_fail_clearly(self):
-        cases = [(['build.py', 'hkzn', '--mode'], '--mode'),
-                 (['build.py', 'hkzn', '--mode=sepia'], '--mode'),
-                 (['build.py', 'hkzn', '--mode='], '--mode'),
-                 (['build.py', 'cbny', '--mode', 'light'], 'only for hkzn'),
+        cases = [(['build.py', self.site, '--mode'], '--mode'),
+                 (['build.py', self.site, '--mode=sepia'], '--mode'),
+                 (['build.py', self.site, '--mode='], '--mode'),
+                 (['build.py', 'origin', '--mode', 'light'], 'only for hkzn and cbny'),
                  (['build.py', '--all', '--mode=light'], 'only for hkzn'),
-                 (['sites/hkzn/layout.py', '--mode'], '--mode'),
-                 (['sites/hkzn/layout.py', '--mode', 'sepia'], '--mode')]
+                 ([f'sites/{self.site}/layout.py', '--mode'], '--mode'),
+                 ([f'sites/{self.site}/layout.py', '--mode', 'sepia'], '--mode')]
         for args, message in cases:
             with self.subTest(args=args):
                 proc = subprocess.run([sys.executable, str(ROOT / args[0]), *args[1:]],
                                       capture_output=True, text=True)
                 self.assertNotEqual(proc.returncode, 0)
                 self.assertIn(message, proc.stderr)
+
+
+class CbnyThemeTests(ThemeTests):
+    site = "cbny"

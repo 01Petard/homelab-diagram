@@ -107,19 +107,18 @@ to its tile width; cbny/hkzn retain their mixed Chinese/Latin measurement and fo
 
 Source: https://github.com/Goblinmine/homelab-diagram/pull/1
 
-## hkzn display modes
+## Flat-site display modes
 
-hkzn supports `--mode dark|light` (default dark), independently of `--lang en|zh`.
-Its theme palette is in `THEMES` in `sites/hkzn/layout.py`. Keep mode-specific colors
+hkzn and cbny support `--mode dark|light` (default dark), independently of `--lang en|zh`.
+Each site keeps its theme palette in `THEMES` in its own `layout.py`. Keep mode-specific colors
 there, including cloud, hardware and LAN surfaces. Inventory accents are adapted
 for light backgrounds at render time; do not duplicate YAML files per mode. Local
 glyph colors adapt in memory, while external brand icons keep their original colors.
 Both modes retain the same font metrics and coordinates.
 
-hkzn output filenames always include language and mode:
-`hkzn-<en|zh>-<dark|light>[-unredacted].svg` / `.png`. This overrides the general
-filename examples above for hkzn. Other sites retain their current naming and do
-not yet support light mode. Check all four hkzn language/mode combinations visually.
+Both sites use `<site>-<en|zh>-<dark|light>[-unredacted].svg` / `.png`.
+This overrides the general filename examples above for these sites. Origin does
+not yet support light mode. Check all four language/mode combinations visually.
 
 ### origin Chinese inventory
 

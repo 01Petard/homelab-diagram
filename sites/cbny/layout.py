@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """The diagram of the flat in 春波南苑 (cbny): a single-segment home network.
 
-    python3 sites/cbny/layout.py [--lang en|zh] [--unredacted]
-                                 → out/cbny[-zh].svg + .png
+    python3 sites/cbny/layout.py [--lang en|zh] [--mode dark|light] [--unredacted]
+                                 → out/cbny-<lang>-<mode>[-unredacted].svg + .png
 
 Internet → ONT → router → the four clients that are really there, plus the tailnet.
 Content comes from site.en.yaml (English) or site.zh.yaml (Chinese) in this directory,
@@ -13,6 +13,7 @@ needed to draw it, so it can be edited without touching any other site.
 import base64
 import html
 import pathlib
+import re
 import subprocess
 import sys
 
@@ -34,6 +35,14 @@ def opt(name, default=None):
             return a.split("=", 1)[1]
     return default
 
+
+if "--mode" in sys.argv:
+    i = sys.argv.index("--mode")
+    if i + 1 >= len(sys.argv) or sys.argv[i + 1].startswith("--"):
+        sys.exit("--mode needs a value (dark | light)")
+MODE = opt("mode", "dark")
+if MODE not in ("dark", "light"):
+    sys.exit(f"unknown --mode '{MODE}' (dark | light)")
 
 UNREDACTED = "--unredacted" in sys.argv
 LANG = opt("lang", "en")
@@ -66,26 +75,55 @@ SHOWN_DOMAIN = DOMAIN if (UNREDACTED or not RED["domain"]) else RED["domain_plac
 
 W, H = 2400, 1200
 
-# ---------------------------------------------------------------- palette
-BG = "#0b0f15"
-GRID = "#151c26"
-PANEL = "#111821"
-PANEL2 = "#161f2b"
-CHIP = "#19222e"
-BORDER = "#253042"
-TEXT = "#e6edf3"
-MUTED = "#8d9aab"
-FAINT = "#5d6a7c"
-TRUNK = "#d5dde6"
-TRUNK_BORDER = "#3a475a"   # border for devices that are not tied to a single VLAN
-LINK = "#79c0ff"
-REDDIT = "#ff5722"
-DISK = "#1d2734"
-DISK_EDGE = "#5a6b82"
-PROTO = {"TCP": "#79c0ff", "UDP": "#39c5cf"}
-SPEED_W = {"10G": 9.5, "2.5G": 3.8, "1G": 2.4, "100M": 1.4}   # access-line widths
-VLAN = {v["key"]: v for v in INV["vlans"]}
+# ---------------------------------------------------------------- theme
+# Keep coordinates and font metrics identical between modes.
+THEMES = {
+    "dark": dict(
+        bg="#0b0f15", grid="#151c26", panel="#111821", panel2="#161f2b",
+        chip="#19222e", border="#253042", text="#e6edf3", muted="#8d9aab",
+        faint="#5d6a7c", trunk="#d5dde6", trunk_border="#3a475a", link="#79c0ff",
+        watermark="#ff5722", disk="#1d2734", disk_edge="#5a6b82",
+        hardware="#c08a5c", hardware_bg="#151d29", hardware_border="#2e3a4c",
+        cloud="#1a2433", cloud_border="#3a4a60", lan_bg="#0e151e",
+        uplink="#6b7a90", online="#3fb950", glyph="#c9d1d9",
+    ),
+    "light": dict(
+        bg="#f5f7fa", grid="#e4e9ef", panel="#ffffff", panel2="#eef2f6",
+        chip="#f0f4f8", border="#cbd5e1", text="#172536", muted="#4b5d70",
+        faint="#596b7e", trunk="#475569", trunk_border="#94a3b8", link="#0969b5",
+        watermark="#bd4319", disk="#e5ebf2", disk_edge="#66788a",
+        hardware="#8b5428", hardware_bg="#f3f6fa", hardware_border="#cbd5e1",
+        cloud="#e7eef6", cloud_border="#a6b6c8", lan_bg="#edf2f7",
+        uplink="#66788a", online="#1a7f37", glyph="#445569",
+    ),
+}
+THEME = THEMES[MODE]
+BG, GRID = THEME["bg"], THEME["grid"]
+PANEL, PANEL2, CHIP = THEME["panel"], THEME["panel2"], THEME["chip"]
+BORDER, TEXT, MUTED, FAINT = (THEME[k] for k in ("border", "text", "muted", "faint"))
+TRUNK, TRUNK_BORDER = THEME["trunk"], THEME["trunk_border"]
+LINK, REDDIT = THEME["link"], THEME["watermark"]
+DISK, DISK_EDGE = THEME["disk"], THEME["disk_edge"]
+SPEED_W = {"10G": 9.5, "2.5G": 3.8, "1G": 2.4, "100M": 1.4}
+
+
+def accent(color):
+    """Darken inventory accents for readable text on light cards, retaining their hue."""
+    if MODE == "dark":
+        return color
+    rgb = [int(color[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+    # Aim above 4.5:1 even on the light theme's tinted chips and LAN panel.
+    while True:
+        linear = [v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4 for v in rgb]
+        luminance = sum(v * w for v, w in zip(linear, (0.2126, 0.7152, 0.0722)))
+        if luminance <= 0.14:
+            return "#" + "".join(f"{round(v * 255):02x}" for v in rgb)
+        rgb = [v * 0.94 for v in rgb]
+
+
+VLAN = {v["key"]: dict(v, color=accent(v["color"])) for v in INV["vlans"]}
 C = {k: v["color"] for k, v in VLAN.items()}
+PROTO = {"TCP": accent("#79c0ff"), "UDP": accent("#39c5cf")}
 SANS = "Fira Sans"
 MONO = "Fira Code"
 if LANG == "zh":
@@ -230,7 +268,14 @@ class SVG:
             f = ICONS / f"{name}.svg"
             if not f.exists():
                 raise SystemExit(f"missing icon '{name}' – run: python3 fetch_icons.py")
-            self._icon_cache[name] = base64.b64encode(f.read_bytes()).decode()
+            data = f.read_bytes()
+            if MODE == "light" and name.startswith("glyph-"):
+                # Our glyphs have explicit flat colors; external brand artwork stays intact.
+                data = re.sub(rb"#[0-9a-fA-F]{6}", lambda m: (
+                    THEME["glyph"] if m[0].lower() == b"#c9d1d9"
+                    else accent(m[0].decode())
+                ).encode(), data)
+            self._icon_cache[name] = base64.b64encode(data).decode()
         self.add(f'<image x="{x:.1f}" y="{y:.1f}" width="{size}" height="{size}" '
                  f'href="data:image/svg+xml;base64,{self._icon_cache[name]}"/>')
 
@@ -322,7 +367,7 @@ def addr(x, y, ip, g, color, size=12):
         S.text(dx + cw_ * 1.6, y, name, size, ncol or color, 400, mono=True, op=1 if ncol else 0.85)
 
 
-HWC = "#c08a5c"   # "physical hardware" accent (same tan as the HARDWARE labels)
+HWC = THEME["hardware"]   # "physical hardware" accent (same tan as the HARDWARE labels)
 
 
 def hw_bar(x, y, h):
@@ -373,9 +418,9 @@ def device_card(x, y, w, h, icons, g, color, fill=PANEL, stroke=None, sw=1.6):
 def jack(x, y, w, h, fill, stroke, sfp=False):
     S.rect(x, y, w, h, rx=5, fill=fill, stroke=stroke, sw=1.4)
     if sfp:
-        S.rect(x + 8, y + 9, w - 16, h - 18, rx=2, fill="#0b0f15", stroke="none", sw=0)
+        S.rect(x + 8, y + 9, w - 16, h - 18, rx=2, fill=BG, stroke="none", sw=0)
     else:
-        S.add(f'<path d="M{x+10},{y+h-8} v-14 h6 v-5 h{w-32} v5 h6 v14 z" fill="#0b0f15"/>')
+        S.add(f'<path d="M{x+10},{y+h-8} v-14 h6 v-5 h{w-32} v5 h6 v14 z" fill="{BG}"/>')
 
 
 def ticks(cx, y, untagged=None, tagged=(), up=False):
@@ -422,7 +467,7 @@ vx, vy, vw = 40, 150, 500
 vh = 70 + len(INV["vlans"]) * 60
 S.rect(vx, vy, vw, vh, rx=14, fill=PANEL, stroke=BORDER, sw=1.4)
 S.text(vx + 20, vy + 36, UI["networks"], 19, TEXT, 600)
-for i, v in enumerate(INV["vlans"]):
+for i, v in enumerate(VLAN.values()):
     y = vy + 56 + i * 60
     S.rect(vx + 14, y, vw - 28, 52, rx=9, fill=CHIP, stroke=v["color"] + "55", sw=1)
     S.add(f'<rect x="{vx+14}" y="{y}" width="6" height="52" rx="3" fill="{v["color"]}"/>')
@@ -488,11 +533,11 @@ rx_, ry_ = 620, 146
 
 blobs = [(-95, 18, 42), (-45, -8, 56), (25, -18, 62), (90, 6, 48), (130, 26, 30), (-130, 30, 28)]
 for dx, dy, r in blobs:
-    S.add(f'<circle cx="{CX+dx}" cy="{cy0+dy}" r="{r+2.5}" fill="#3a4a60"/>')
-S.add(f'<rect x="{CX-150}" y="{cy0+12}" width="300" height="46" rx="23" fill="#3a4a60"/>')
+    S.add(f'<circle cx="{CX+dx}" cy="{cy0+dy}" r="{r+2.5}" fill="{THEME["cloud_border"]}"/>')
+S.add(f'<rect x="{CX-150}" y="{cy0+12}" width="300" height="46" rx="23" fill="{THEME["cloud_border"]}"/>')
 for dx, dy, r in blobs:
-    S.add(f'<circle cx="{CX+dx}" cy="{cy0+dy}" r="{r}" fill="#1a2433"/>')
-S.add(f'<rect x="{CX-147.5}" y="{cy0+14.5}" width="295" height="41" rx="20.5" fill="#1a2433"/>')
+    S.add(f'<circle cx="{CX+dx}" cy="{cy0+dy}" r="{r}" fill="{THEME["cloud"]}"/>')
+S.add(f'<rect x="{CX-147.5}" y="{cy0+14.5}" width="295" height="41" rx="20.5" fill="{THEME["cloud"]}"/>')
 S.text(CX, cy0 + 14, UI["internet"], 26, TEXT, 600, "middle")
 S.text(CX, cy0 + 40, INV["internet"]["caption"], 13, MUTED, 400, "middle")
 
@@ -522,7 +567,7 @@ S.icon("tailscale", csx + 500, tly + 14, 24)
 for i, n in enumerate(tl):
     y = tly + 62 + i * 38
     on = n["state"].startswith("online")
-    dot = "#3fb950" if on else FAINT
+    dot = THEME["online"] if on else FAINT
     S.add(f'<circle cx="{csx + 26}" cy="{y - 4}" r="3.4" fill="{dot}"/>')
     S.text(csx + 40, y, n["name"], 13.5, TEXT, 600)
     S.text(csx + 210, y, n["ip"], 12.5, C["vpn"], 500, mono=True)
@@ -534,8 +579,8 @@ isp = INV["isp"]
 OX, OY, OW, OH = 920, 304, 460, 100
 device_card(OX, OY, OW, OH, [], isp, C["wan"])
 # the fiber plugs into the top edge, right where the internet line lands
-S.line([(CX, cy0 + 58), (CX, OY - 4)], "#6b7a90", 3)
-S.add(f'<circle cx="{CX}" cy="{OY - 4}" r="10" fill="#0b0f15" stroke="#5a6b82" stroke-width="2"/>'
+S.line([(CX, cy0 + 58), (CX, OY - 4)], THEME["uplink"], 3)
+S.add(f'<circle cx="{CX}" cy="{OY - 4}" r="10" fill="{BG}" stroke="{DISK_EDGE}" stroke-width="2"/>'
       f'<circle cx="{CX}" cy="{OY - 4}" r="2.6" fill="{C["wan"]}"/>')
 
 # ================================================================ router
@@ -546,10 +591,10 @@ device_card(RX, RY, RW_, RH, ["tp-link"], rt, C["10"], stroke=TRUNK_BORDER)
 S.text(RX + 18, RY + 96, UI["hardware"], 11.5, HWC, 700, ls=1.4)
 for i, hwi in enumerate(rt["hw"]):
     x, y = RX + 16, RY + 106 + i * 64
-    S.rect(x, y, 210, 58, rx=11, fill="#151d29", stroke="#2e3a4c", sw=1.2)
+    S.rect(x, y, 210, 58, rx=11, fill=THEME["hardware_bg"], stroke=THEME["hardware_border"], sw=1.2)
     hw_bar(x, y, 58)
     S.icon(hwi["icon"], x + 12, y + 15, 28)
-    S.text(x + 50, y + 17, hwi["label"], 10, "#c08a5c", 700, ls=1.3)
+    S.text(x + 50, y + 17, hwi["label"], 10, HWC, 700, ls=1.3)
     vs = min(15.5, 15.5 * 148 / max(measure(hwi["value"], 15.5, 700), 1))
     S.text(x + 50, y + 35, hwi["value"], round(vs, 2), TEXT, 700)
     ss = min(10.5, 10.5 * 148 / max(measure(hwi["sub"], 10.5, 400), 1))
@@ -625,7 +670,7 @@ assert DY + DH + 20 <= H, f"canvas too short: devices end at {DY + DH}"
 assert RX + RW_ <= 1700, "router card runs into the right column"
 
 OUT.mkdir(exist_ok=True)
-name = "-".join([SITE.name] + ([] if LANG == "en" else [LANG]) + (["unredacted"] if UNREDACTED else []))
+name = "-".join([SITE.name, LANG, MODE] + (["unredacted"] if UNREDACTED else []))
 svg_path = OUT / f"{name}.svg"
 svg_path.write_text(S.render())
 png_path = OUT / f"{name}.png"
