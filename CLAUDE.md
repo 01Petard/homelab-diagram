@@ -19,7 +19,7 @@ Start by telling the user briefly how this works (interview → site.yaml → la
 
 Generic (driven by the YAML): VLAN table, legend, "Open to the internet" card, cloud services, OPNsense hardware/services lists, switch ports (labels, VLAN ticks, colors), device cards, SSIDs, server hardware tiles, guest cards, DMZ groups and their chips, multi-app container cards, storage pools, the media pipeline nodes and shares.
 
-Hardcoded in `build.py` (you will almost certainly edit these):
+Hardcoded in each site’s `layout.py` (you will almost certainly edit these):
 
 | Section (search for) | What's fixed | Typical change |
 |---|---|---|
@@ -31,7 +31,7 @@ Hardcoded in `build.py` (you will almost certainly edit these):
 | other-VLAN guests | `og["truenas"]`, `og["haos"]`, `og["unifi"]`, `og["bliss"]` drawn one below another with fixed heights | different VMs outside the DMZ |
 | `# DMZ zone`: `NCOL` and the `column(i, [group names])` calls | which DMZ group goes into which column | rebalance columns for their groups |
 | `# media pipeline` | an *arr/Jellyfin explainer panel | remove the whole section if they don't want it, or reuse it for another flow |
-| `W, H` | canvas size | grow `H` when content gets taller (the asserts at the end tell you) |
+| `W` / `# canvas height` | canvas width and lowest-panel calculation | canvas height follows the site’s panel bottoms; include new panels in that calculation |
 
 Safety nets: `assert`s at the end of sections fail loudly when a column/panel overflows. Text widths come from `measure()` (Pillow + the real font) or the rough estimate `tw()`. Always check visually.
 
@@ -79,5 +79,30 @@ Useful read-only commands if you have access (ask first): Proxmox `pct list`, `q
 
 - Fonts: **Fira Sans** and **Fira Code** must be installed, otherwise rsvg falls back and every width calculation is off.
 - jsDelivr sometimes refuses single icons with 403; `fetch_icons.py` falls back to raw GitHub.
-- When content grows, grow `H` (and section heights like `ZH`), the asserts tell you where.
+- When content grows, adjust section heights like `ZH`; canvas height follows the lowest panels.
 - A device whose cable enters from above must have its entry point right of its folder tab (see how `KVM_IN`/`AP_IN` use `tab_width()`).
+
+## Optional rendering fields (adapted from upstream PR #1)
+
+All layouts accept `python3 build.py <site> --inventory FILE` (also `--inventory=FILE`).
+The override is relative to the working directory and must match that site’s schema.
+It replaces the content file selected by `--lang`; the language still selects interface
+labels and fonts. Only one site can be selected with an inventory override.
+
+The origin panorama additionally supports:
+
+| Field | Location | Effect |
+|---|---|---|
+| `stub: true` | `fritzbox` | compact unmanaged ISP box, without port row |
+| `short` | `switch.ports[]` | shorter port destination label |
+| no VLAN fields | used switch port | grey unknown-VLAN styling |
+| `kind`, `node`, `vlan` | DMZ guest | VM/CT label, cluster node and VLAN accent |
+| `vlans` | `ssids[]` | PPSK VLAN dots; single `vlan` becomes optional |
+| `warn` | storage pool | orange usage bar at threshold (default 85%) |
+
+RJ45 ports precede SFP+ ports; the count is derived, but cable routing remains
+site-specific. Extra ports may require card width and route adjustments. Pool disk
+groups wrap when necessary and assert if the box is too short. Hardware text scales
+to its tile width; cbny/hkzn retain their mixed Chinese/Latin measurement and fonts.
+
+Source: https://github.com/Goblinmine/homelab-diagram/pull/1

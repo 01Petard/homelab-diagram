@@ -19,7 +19,20 @@ import yaml
 
 SITE = pathlib.Path(__file__).resolve().parent          # this directory: site.yaml and out/ live here
 ROOT = SITE.parent.parent                               # repo root: the shared icons are there
-INV = yaml.safe_load((SITE / "site.yaml").read_text())
+inventory = None
+for i, arg in enumerate(sys.argv[1:], 1):
+    if arg == "--inventory":
+        if i + 1 >= len(sys.argv) or sys.argv[i + 1].startswith("--"):
+            sys.exit("--inventory needs a file path")
+        inventory = sys.argv[i + 1]
+    elif arg.startswith("--inventory="):
+        inventory = arg.split("=", 1)[1]
+        if not inventory:
+            sys.exit("--inventory needs a file path")
+CFG = pathlib.Path(inventory) if inventory is not None else SITE / "site.yaml"
+if not CFG.is_file():
+    sys.exit(f"inventory not found: {CFG}")
+INV = yaml.safe_load(CFG.read_text())
 ICONS = ROOT / "icons"
 OUT = SITE / "out"
 
@@ -728,6 +741,7 @@ def pool_box(p, x, y, w, h):
             S.text(dx + 8, y + 80, grp["sub"], 11.5, MUTED, 400)
             if grp.get("sub2"):
                 S.text(dx + 8, y + 95, grp["sub2"], 11.5, MUTED, 400)
+            gw_ = max(gw_, texts)
         else:
             S.line([(gx0, y + 102), (gx0, y + 106), (gx0 + gw_, y + 106), (gx0 + gw_, y + 102)], DISK_EDGE, 1.2, r=0, cap="butt")
             S.text(gx0, y + 122, grp["label"], 12.5, TEXT, 500)

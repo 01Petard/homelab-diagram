@@ -64,13 +64,13 @@ def main():
     i = 0
     while i < len(args):
         a = args[i]
-        if a == "--lang":                       # --lang zh, kept out of `names`
-            if i + 1 >= len(args):
-                sys.exit("--lang needs a value (en | zh)")
+        if a in ("--lang", "--inventory"):                       # --lang zh, kept out of `names`
+            if i + 1 >= len(args) or args[i + 1].startswith("--"):
+                sys.exit(f"{a} needs a value")
             flags += [a, args[i + 1]]
             i += 2
             continue
-        if a == "--unredacted" or a.startswith("--lang="):
+        if a == "--unredacted" or a.startswith(("--lang=", "--inventory=")):
             flags.append(a)
         elif not a.startswith("--"):
             names.append(a)
@@ -92,8 +92,11 @@ def main():
     if not targets:
         sys.exit(f"no sites under {SITES.relative_to(ROOT)}/ — add one with site.yaml + layout.py, see README.md")
 
+    if any(f == "--inventory" or f.startswith("--inventory=") for f in flags) and len(targets) != 1:
+        sys.exit("--inventory requires exactly one site (layouts have different schemas)")
+
     for site_dir in targets:
-        if lang != "en" and not (site_dir / f"site.{lang}.yaml").is_file():
+        if not any(f == "--inventory" or f.startswith("--inventory=") for f in flags) and lang != "en" and not (site_dir / f"site.{lang}.yaml").is_file():
             # --all walks over sites that may not have a translation yet; a site
             # named on the command line was asked for explicitly, so say so.
             if names:
