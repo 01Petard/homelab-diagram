@@ -120,3 +120,12 @@ hkzn output filenames always include language and mode:
 `hkzn-<en|zh>-<dark|light>[-unredacted].svg` / `.png`. This overrides the general
 filename examples above for hkzn. Other sites retain their current naming and do
 not yet support light mode. Check all four hkzn language/mode combinations visually.
+
+### origin Chinese inventory
+
+`sites/origin/site.zh.yaml` provides the complete Chinese panorama inventory.
+Render it with `uv run python build.py origin --lang zh`; English remains the default.
+Origin outputs are named `origin-<en|zh>-dark[-unredacted].svg` / `.png`.
+The layout keeps translated interface labels and CJK font fallback alongside its
+coordinates. DMZ groups may use a stable `key` for column placement and a translated
+`name` for display. Addresses, service identifiers and redaction rules stay unchanged.

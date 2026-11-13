@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """The diagram of the upstream lab (origin): the full r/homelab panorama.
 
-    python3 sites/origin/layout.py [--unredacted]    → out/origin.svg + .png
+    python3 sites/origin/layout.py [--lang en|zh] [--unredacted]
+                              → out/origin-<lang>-dark[-unredacted].svg + .png
 
 The layout that shipped with the repo: edge chain (ONT → firewall → core switch),
 the switch port row, the Proxmox card with its hardware, the DMZ containers, the
@@ -19,6 +20,21 @@ import yaml
 
 SITE = pathlib.Path(__file__).resolve().parent          # this directory: site.en.yaml and out/ live here
 ROOT = SITE.parent.parent                               # repo root: the shared icons are there
+def opt(name, default=None):
+    """Value of --name=value or --name value on the command line."""
+    args = sys.argv[1:]
+    for i, a in enumerate(args):
+        if a == f"--{name}" and i + 1 < len(args):
+            return args[i + 1]
+        if a.startswith(f"--{name}="):
+            return a.split("=", 1)[1]
+    return default
+
+
+LANG = opt("lang", "en")
+if LANG not in ("en", "zh"):
+    sys.exit(f"unknown --lang '{LANG}' (en | zh)")
+
 inventory = None
 for i, arg in enumerate(sys.argv[1:], 1):
     if arg == "--inventory":
@@ -29,7 +45,7 @@ for i, arg in enumerate(sys.argv[1:], 1):
         inventory = arg.split("=", 1)[1]
         if not inventory:
             sys.exit("--inventory needs a file path")
-CFG = pathlib.Path(inventory) if inventory is not None else SITE / "site.en.yaml"
+CFG = pathlib.Path(inventory) if inventory is not None else SITE / f"site.{LANG}.yaml"
 if not CFG.is_file():
     sys.exit(f"inventory not found: {CFG}")
 INV = yaml.safe_load(CFG.read_text())
@@ -66,7 +82,70 @@ VLAN = {v["key"]: v for v in INV["vlans"]}
 C = {k: v["color"] for k, v in VLAN.items()}
 SANS = "Fira Sans"
 MONO = "Fira Code"
+if LANG == "zh":
+    # Fira has no CJK glyphs, so the renderer (Pango) falls back per character:
+    # latin stays Fira, Chinese is handed to the system font. Without the stack
+    # every Chinese character would come out as an empty box.
+    CJK = ", PingFang SC, Noto Sans CJK SC, Hiragino Sans GB, sans-serif"
+    SANS, MONO = SANS + CJK, MONO + CJK
 
+
+
+
+WIDE = ((0x1100, 0x115F), (0x2E80, 0x303E), (0x3041, 0x33FF), (0x3400, 0x4DBF),
+        (0x4E00, 0x9FFF), (0xA000, 0xA4CF), (0xAC00, 0xD7A3), (0xF900, 0xFAFF),
+        (0xFE30, 0xFE4F), (0xFF00, 0xFF60), (0xFFE0, 0xFFE6))
+
+
+def wide(ch):
+    """CJK and full-width punctuation advance one em, unlike the latin estimate."""
+    o = ord(ch)
+    return any(a <= o <= b for a, b in WIDE)
+
+
+UI_ZH = {'Internet': '互联网',
+ 'semi-static public IPv4': '半固定公网 IPv4',
+ 'Cable': '同轴线',
+ 'internet': '互联网',
+ 'exposed host': '暴露主机',
+ 'HARDWARE': '硬件',
+ 'SERVICES': '服务',
+ 'LACP · dual 2.5G': 'LACP · 双 2.5G',
+ 'SSIDs': '无线网络',
+ 'Open to the internet': '公网开放服务',
+ 'port forwards on OPNsense · blocklist + CrowdSec drop bad IPs first': 'OPNsense 端口转发 · 黑名单与 '
+                                                                        'CrowdSec 先过滤恶意 IP',
+ 'Legend': '图例',
+ '802.1Q trunk (tagged VLANs)': '802.1Q 干道（带 VLAN 标签）',
+ 'access port, colored by VLAN': '接入口，颜色表示 VLAN',
+ 'WAN (Fritzbox network)': 'WAN（Fritzbox 网段）',
+ 'KVM console (HDMI + USB)': 'KVM 控制台（HDMI + USB）',
+ 'over the internet (not a cable)': '经互联网（非物理连线）',
+ 'line width = speed': '线宽表示速率',
+ 'public via Traefik': '经 Traefik 对公网开放',
+ 'local DNS, no Traefik': '本地 DNS，不经 Traefik',
+ 'only from LAN / VPN': '仅 LAN / VPN 可访问',
+ 'port VLANs (tall = untagged)': '端口 VLAN（高条为无标签）',
+ 'TrueNAS share, bind-mounted': 'TrueNAS 共享，绑定挂载',
+ 'Networks': '网络',
+ 'HDMI + USB console': 'HDMI + USB 控制台',
+ 'one unprivileged LXC per service · web apps behind Traefik (CT 149)': '每项服务独立运行于非特权 LXC · Web '
+                                                                        '应用经 Traefik（CT 149）',
+ 'Media pipeline': '媒体处理流程',
+ 'how a request ends up in Jellyfin': '从请求到 Jellyfin 播放',
+ 'bind mount: SMB ↔ terra ↔ CT': '绑定挂载：SMB ↔ terra ↔ CT',
+ 'request': '请求',
+ 'indexers': '索引器',
+ 'torrent': '种子',
+ 'copy +': '复制并',
+ 'rename': '重命名',
+ 'pick up': '完成后',
+ 'when done': '读取',
+ 'available': '可播放',
+ 'download': '下载',
+ 'library': '媒体库',
+ 'custom build': '自行组装'}
+UI = {key: value if LANG == "zh" else key for key, value in UI_ZH.items()}
 
 def trunk_w(speed):
     return SPEED_W[speed] + 3.4
@@ -86,7 +165,10 @@ def esc(s):
 
 def tw(s, size, mono=False):
     """Rough text width for layout decisions."""
-    return len(sub(s)) * size * (0.6 if mono else 0.53)
+    s = sub(s)
+    if not any(wide(c) for c in s):
+        return len(s) * size * (0.6 if mono else 0.53)
+    return sum(size if wide(c) else size * (0.6 if mono else 0.53) for c in s)
 
 
 def _font_file(pattern):
@@ -110,6 +192,8 @@ try:
         key = (weight, size)
         if key not in _FCACHE:
             _FCACHE[key] = ImageFont.truetype(_FONTS[weight], size=size * 8)
+        if LANG == "zh":
+            return sum(size if wide(c) else _FCACHE[key].getlength(c) / 8 for c in s)
         return _FCACHE[key].getlength(s) / 8
 except Exception:          # no Pillow / font file: rough estimate
     def measure(s, size, weight=700):
@@ -118,7 +202,7 @@ except Exception:          # no Pillow / font file: rough estimate
 
 def tw_title(s, size):
     """Width estimate for bold title text (capitals are wider than lowercase)."""
-    return sum(0.68 if c.isupper() else 0.58 if c.isdigit() else 0.5 for c in s) * size
+    return sum(size if wide(c) else (0.68 if c.isupper() else 0.58 if c.isdigit() else 0.5) * size for c in s)
 
 
 def fqdn(h):
@@ -299,7 +383,7 @@ def device_card(x, y, w, h, icons, g, color, fill=PANEL, stroke=None, sw=1.6):
         ix += 58
     tx_ = ix + 8
     dy = 0 if g.get("os") else 8          # no OS line → center the two lines on the icon
-    S.text(tx_, y + 28 + dy, g.get("model") or "custom build", 14, TEXT if g.get("model") else MUTED, 500)
+    S.text(tx_, y + 28 + dy, g.get("model") or UI["custom build"], 14, TEXT if g.get("model") else MUTED, 500)
     addr(tx_, y + 48 + dy, g["ip"], g, color)
     if g.get("os"):
         S.text(tx_, y + 66, g["os"], 12, MUTED, 400)
@@ -373,8 +457,8 @@ S.add(f'<rect x="{CX-150}" y="{cy0+12}" width="300" height="46" rx="23" fill="#3
 for dx, dy, r in blobs:
     S.add(f'<circle cx="{CX+dx}" cy="{cy0+dy}" r="{r}" fill="#1a2433"/>')
 S.add(f'<rect x="{CX-147.5}" y="{cy0+14.5}" width="295" height="41" rx="20.5" fill="#1a2433"/>')
-S.text(CX, cy0 + 14, "Internet", 26, TEXT, 600, "middle")
-S.text(CX, cy0 + 40, "semi-static public IPv4", 13, MUTED, 400, "middle")
+S.text(CX, cy0 + 14, UI['Internet'], 26, TEXT, 600, "middle")
+S.text(CX, cy0 + 40, UI['semi-static public IPv4'], 13, MUTED, 400, "middle")
 
 S.rect(rx_, ry_, 300, 84, rx=12, fill=PANEL, stroke=C["vpn"] + "aa", sw=1.6)
 S.icon("wireguard", rx_ + 16, ry_ + 22, 38)
@@ -398,7 +482,7 @@ S.label(CX - 10, (cy0 + 58 + fy - TAB) / 2 + 5, "↓ " + ISPD["down"], "#c3cdd9"
 S.label(CX + 10, (cy0 + 58 + fy - TAB) / 2 + 5, "↑ " + ISPD["up"], "#c3cdd9", 12, anchor="start", mono=True)
 FBX, FBW = CX - 302, 620                   # coax port sits right under the internet line (x = CX)
 COAX_X = FBX + 302
-FB_PORTS = [] if fb.get("stub") else [("Cable", None)] + [(sp, None) for sp in fb["lan_ports"]]
+FB_PORTS = [] if fb.get("stub") else [(UI['Cable'], None)] + [(sp, None) for sp in fb["lan_ports"]]
 if fb.get("stub"):                         # ISP-managed box (ONT, modem): small box, WAN goes straight down
     S.line([(CX, cy0 + 58), (CX, fy + fh)], C["wan"], SPEED_W["1G"])
     S.rect(CX - 170, fy + fh - 92, 340, 62, rx=12, fill=PANEL, stroke=C["wan"] + "aa", sw=1.6)
@@ -414,8 +498,8 @@ for i, (lbl, _) in enumerate(FB_PORTS):
         S.rect(cx_ - 22, fy + 28, 44, 36, rx=5, fill="#2a3443", stroke=TRUNK, sw=1.4)
         S.add(f'<circle cx="{cx_}" cy="{fy+46}" r="11" fill="#0b0f15" stroke="#5a6b82" stroke-width="2"/>'
               f'<circle cx="{cx_}" cy="{fy+46}" r="2.5" fill="{TRUNK}"/>')
-        S.label(cx_, fy + 20, "Cable", MUTED, 11, mono=True, bg=PANEL)   # the internet line passes behind it
-        S.text(cx_, fy + fh - 9, "internet", 10.5, MUTED, 500, "middle")
+        S.label(cx_, fy + 20, UI['Cable'], MUTED, 11, mono=True, bg=PANEL)   # the internet line passes behind it
+        S.text(cx_, fy + fh - 9, UI['internet'], 10.5, MUTED, 500, "middle")
         continue
     cx_ = FBX + 366 + (i - 1) * 52
     used = (i - 1) == fb["opnsense_port"]
@@ -424,13 +508,13 @@ for i, (lbl, _) in enumerate(FB_PORTS):
     if used:
         WANX = cx_
         ticks(cx_, fy + 69, untagged="wan")
-        S.text(cx_, fy + fh - 9, "exposed host", 10.5, C["wan"], 600, "middle")
+        S.text(cx_, fy + fh - 9, UI['exposed host'], 10.5, C["wan"], 600, "middle")
 
 # OPNsense card (jacks: em0 on top where the WAN comes in, the dual NIC at the bottom above switch ports 1+2)
 opn = INV["opnsense"]
 device_card(ox, oy, ow, oh, ["opnsense"], opn, C["99"], stroke=TRUNK_BORDER)
-S.text(ox + 20, oy + 96, "HARDWARE", 11.5, HWC, 700, ls=1.4)
-S.text(916, oy + 96, "SERVICES", 11.5, HWC, 700, ls=1.4)
+S.text(ox + 20, oy + 96, UI['HARDWARE'], 11.5, HWC, 700, ls=1.4)
+S.text(916, oy + 96, UI['SERVICES'], 11.5, HWC, 700, ls=1.4)
 for i, hwi in enumerate(opn["hw"]):
     x, y = ox + 16, oy + 106 + i * 64
     S.rect(x, y, 200, 58, rx=11, fill="#151d29", stroke="#2e3a4c", sw=1.2)
@@ -465,7 +549,7 @@ for i in (0, 1):
 lx = (port_x(0) + port_x(1)) / 2
 ly = (oy + oh + by) / 2
 S.add(f'<ellipse cx="{lx}" cy="{ly}" rx="46" ry="12" fill="none" stroke="{TRUNK}" stroke-width="1.4" stroke-dasharray="3 3"/>')
-S.label(lx + 54, ly + 4, "LACP · dual 2.5G", TRUNK, 11, anchor="start", mono=True)
+S.label(lx + 54, ly + 4, UI['LACP · dual 2.5G'], TRUNK, 11, anchor="start", mono=True)
 
 # ================================================================ switch
 swc = INV["switch"]
@@ -518,7 +602,7 @@ device("madcat", MAD)
 device("jetkvm", KVM)
 
 x, w, h = device("ap", AP)
-S.text(x + 18, DY + 96, "SSIDs", 11, FAINT, 600, ls=1.2)
+S.text(x + 18, DY + 96, UI['SSIDs'], 11, FAINT, 600, ls=1.2)
 for i, s in enumerate(INV["ssids"]):
     name = s["redacted"] if (RED["ssid_names"] and not UNREDACTED) else s["name"]
     col = C[s["vlan"]] if "vlan" in s else TRUNK      # PPSK SSIDs may list only `vlans`
@@ -567,8 +651,8 @@ ix_, iy_, iw_ = 1790, 262, 570
 pf = INV["port_forwards"]
 ih_ = 84 + len(pf) * 44
 S.rect(ix_, iy_, iw_, ih_, rx=14, fill=PANEL, stroke=BORDER, sw=1.4)
-S.text(ix_ + 20, iy_ + 34, "Open to the internet", 19, TEXT, 600)
-S.text(ix_ + 20, iy_ + 56, "port forwards on OPNsense · blocklist + CrowdSec drop bad IPs first", 12.5, MUTED, 400)
+S.text(ix_ + 20, iy_ + 34, UI['Open to the internet'], 19, TEXT, 600)
+S.text(ix_ + 20, iy_ + 56, UI['port forwards on OPNsense · blocklist + CrowdSec drop bad IPs first'], 12.5, MUTED, 400)
 for i, r in enumerate(pf):
     y = iy_ + 72 + i * 44
     S.rect(ix_ + 14, y, iw_ - 28, 38, rx=8, fill=CHIP, stroke=BORDER, sw=1)
@@ -585,43 +669,43 @@ lgx, lgy, lgw = 40, 660, 500
 LR = 27
 lgh = 52 + len(LG_ROWS) * LR + 8
 S.rect(lgx, lgy, lgw, lgh, rx=14, fill=PANEL, stroke=BORDER, sw=1.4)
-S.text(lgx + 20, lgy + 36, "Legend", 19, TEXT, 600)
+S.text(lgx + 20, lgy + 36, UI['Legend'], 19, TEXT, 600)
 SX, TX = lgx + 22, lgx + 162          # symbol column, text column
 for i, k in enumerate(LG_ROWS):
     y = lgy + 66 + i * LR
     t = None
     if k == "trunk":
-        S.trunk([(SX, y), (SX + 50, y)], sw=trunk_w("2.5G"), r=0); t = "802.1Q trunk (tagged VLANs)"
+        S.trunk([(SX, y), (SX + 50, y)], sw=trunk_w("2.5G"), r=0); t = UI['802.1Q trunk (tagged VLANs)']
     elif k == "access":
         for jj, c in enumerate(["10", "20", "40", "99"]):
             S.line([(SX + jj * 13, y), (SX + jj * 13 + 9, y)], C[c], 3.6, r=0, cap="butt")
-        t = "access port, colored by VLAN"
+        t = UI['access port, colored by VLAN']
     elif k == "wan":
-        S.line([(SX, y), (SX + 50, y)], C["wan"], 3, r=0); t = "WAN (Fritzbox network)"
+        S.line([(SX, y), (SX + 50, y)], C["wan"], 3, r=0); t = UI['WAN (Fritzbox network)']
     elif k == "kvm":
-        S.line([(SX, y), (SX + 50, y)], MUTED, 2, dash="5 5", r=0, cap="butt"); t = "KVM console (HDMI + USB)"
+        S.line([(SX, y), (SX + 50, y)], MUTED, 2, dash="5 5", r=0, cap="butt"); t = UI['KVM console (HDMI + USB)']
     elif k == "net":
-        S.line([(SX, y), (SX + 50, y)], MUTED, 1.8, dash="2 5", r=0); t = "over the internet (not a cable)"
+        S.line([(SX, y), (SX + 50, y)], MUTED, 1.8, dash="2 5", r=0); t = UI['over the internet (not a cable)']
     elif k == "speed":
-        S.text(SX, y + 4.5, "line width = speed", 12.5, MUTED, 400)
+        S.text(SX, y + 4.5, UI['line width = speed'], 12.5, MUTED, 400)
         x0 = TX
         for lbl in ("10G", "2.5G", "1G", "100M"):
             S.line([(x0, y), (x0 + 26, y)], C["10"], SPEED_W[lbl], r=0, cap="butt")
             S.text(x0 + 32, y + 4.5, lbl, 12, TEXT, 500, mono=True)
             x0 += 32 + tw(lbl, 12, True) + 20
     elif k == "public":
-        S.text(SX, y + 4.5, "app." + SHOWN_DOMAIN, 12, LINK, 500, mono=True); t = "public via Traefik"
+        S.text(SX, y + 4.5, "app." + SHOWN_DOMAIN, 12, LINK, 500, mono=True); t = UI['public via Traefik']
     elif k == "internal":
-        S.text(SX, y + 4.5, "name.internal", 12, C["10"], 400, mono=True, op=0.78); t = "local DNS, no Traefik"
+        S.text(SX, y + 4.5, "name.internal", 12, C["10"], 400, mono=True, op=0.78); t = UI['local DNS, no Traefik']
     elif k == "lan":
-        S.pill(SX, y - 9, "LAN", MUTED, 10, mono=True, pad=5); t = "only from LAN / VPN"
+        S.pill(SX, y - 9, "LAN", MUTED, 10, mono=True, pad=5); t = UI['only from LAN / VPN']
     elif k == "ticks":
         for jj, c in enumerate(["10", "20", "40"]):
             S.add(f'<rect x="{SX + jj*7}" y="{y-5 if jj == 0 else y-2}" width="5" height="{8 if jj == 0 else 5}" rx="1" fill="{C[c]}"/>')
-        t = "port VLANs (tall = untagged)"
+        t = UI['port VLANs (tall = untagged)']
     elif k == "share":
         S.rect(SX, y - 8, 22, 15, rx=3, fill=C["10"] + "16", stroke=C["10"] + "cc", sw=1.2, dash="4 3")
-        t = "TrueNAS share, bind-mounted"
+        t = UI['TrueNAS share, bind-mounted']
     if t:
         S.text(TX, y + 4.5, t, 13, MUTED, 400)
 
@@ -629,7 +713,7 @@ for i, k in enumerate(LG_ROWS):
 vx, vy, vw = 40, 150, 500
 vh = 70 + len(INV["vlans"]) * 60
 S.rect(vx, vy, vw, vh, rx=14, fill=PANEL, stroke=BORDER, sw=1.4)
-S.text(vx + 20, vy + 36, "Networks", 19, TEXT, 600)
+S.text(vx + 20, vy + 36, UI['Networks'], 19, TEXT, 600)
 for i, v in enumerate(INV["vlans"]):
     y = vy + 56 + i * 60
     S.rect(vx + 14, y, vw - 28, 52, rx=9, fill=CHIP, stroke=v["color"] + "55", sw=1)
@@ -650,7 +734,7 @@ device_card(tx0, ty0, tw0, th0, ["proxmox"], T, C["10"], fill="#0f151e", stroke=
 # ---- column 1: hardware as a vertical list
 hwx, HWW = tx0 + 20, 250
 hy0 = ty0 + GY
-S.text(hwx + 2, hy0 + 12, "HARDWARE", 11.5, HWC, 700, ls=1.4)
+S.text(hwx + 2, hy0 + 12, UI['HARDWARE'], 11.5, HWC, 700, ls=1.4)
 TH_, TG_ = 58, 6
 for i, hwi in enumerate(T["hw"]):
     x, y = hwx, hy0 + 22 + i * (TH_ + TG_)
@@ -669,7 +753,7 @@ speed_tag(PORTS["sfpp2"] + 10, ty0 - 9, "10G", TRUNK)
 
 kx = KVM[0] + KVM[1] / 2
 S.line([(kx, DY + KVM[2]), (kx, ty0)], MUTED, 2, dash="5 5", cap="butt")
-S.label(kx + 10, (DY + KVM[2] + ty0) / 2 + 5, "HDMI + USB console", MUTED, 12, anchor="start")
+S.label(kx + 10, (DY + KVM[2] + ty0) / 2 + 5, UI['HDMI + USB console'], MUTED, 12, anchor="start")
 
 # ---- other-VLAN guests (left column inside terra)
 og = T["other_guests"]
@@ -777,10 +861,10 @@ zy = gy
 zw = tx0 + tw0 - 20 - zx
 S.rect(zx, zy, zw, ZH, rx=14, fill=C["20"] + "0d", stroke=C["20"] + "88", sw=1.5)
 S.pill(zx + zw - 14, zy + 16, vlan_tag("20"), C["20"], 10.5, mono=True, h=19, pad=6, anchor="end")   # same as the VM/CT card pills
-S.text(zx + 18, zy + 31, "one unprivileged LXC per service · web apps behind Traefik (CT 149)",
+S.text(zx + 18, zy + 31, UI['one unprivileged LXC per service · web apps behind Traefik (CT 149)'],
        12.5, MUTED, 400)
 
-groups = {g["name"]: g for g in T["dmz_groups"]}
+groups = {g.get("key", g["name"]): g for g in T["dmz_groups"]}
 cgap = 14
 NCOL = 4
 cw = (zw - 32 - cgap * (NCOL - 1)) / NCOL
@@ -864,7 +948,7 @@ def chip(g, x, y, w):
 def column(i, names):
     x, y = col_x(i), zy + 56
     for gname in names:
-        S.text(x + 2, y + 12, gname.upper(), 11.5, GT, 700, ls=1.4)
+        S.text(x + 2, y + 12, groups[gname]["name"].upper(), 11.5, GT, 700, ls=1.4)
         y += 22
         for g in groups[gname]["guests"]:
             y += chip(g, x, y, cw) + CG
@@ -894,8 +978,8 @@ SH_ = 64
 SW_ = (PW - 28 - G_) / 2
 PH = RC + SH_ + 16 - PY
 S.rect(PX, PY, PW, PH, rx=14, fill=PANEL, stroke=BORDER, sw=1.4)
-S.text(PX + 20, PY + 32, "Media pipeline", 17, TEXT, 600)
-S.text(PX + 20, PY + 52, "how a request ends up in Jellyfin", 12.5, MUTED, 400)
+S.text(PX + 20, PY + 32, UI['Media pipeline'], 17, TEXT, 600)
+S.text(PX + 20, PY + 52, UI['how a request ends up in Jellyfin'], 12.5, MUTED, 400)
 assert PY + PH <= ty0 - TAB - 16, f"pipeline panel overlaps terra: {PY + PH} > {ty0 - TAB - 16}"
 
 
@@ -929,7 +1013,7 @@ def share(sh, x, y):
     S.text(x + 40, y + 26, sh["name"], 13.5, TEXT, 600)
     S.text(x + SW_ - 10, y + 26, "TrueNAS SMB", 10.5, C["10"], 600, "end", mono=True)
     S.text(x + 10, y + 44, sh["pool"], 11, MUTED, 400)
-    S.text(x + 10, y + 58, "bind mount: SMB ↔ terra ↔ CT", 10, C["10"], 500, mono=True)
+    S.text(x + 10, y + 58, UI['bind mount: SMB ↔ terra ↔ CT'], 10, C["10"], 500, mono=True)
 
 
 node(N["seerr"], 0, RS)
@@ -948,28 +1032,28 @@ share(mp["shares"]["torrents"], tx_, RC)
 
 midS = RS + NH / 2
 S.arrow([(node_x(0) + NW + 4, midS), (node_x(1) - 10, midS)])
-S.label(node_x(0) + NW + G_ / 2 - 3, midS - 8, "request", MUTED, 11, bg=CARD_BG)
+S.label(node_x(0) + NW + G_ / 2 - 3, midS - 8, UI['request'], MUTED, 11, bg=CARD_BG)
 S.arrow([(node_x(2) - 4, midS), (node_x(1) + NW + 10, midS)])
-S.label(node_x(1) + NW + G_ / 2 + 3, midS - 8, "indexers", MUTED, 11, bg=CARD_BG)
+S.label(node_x(1) + NW + G_ / 2 + 3, midS - 8, UI['indexers'], MUTED, 11, bg=CARD_BG)
 qx = node_x(2) + NW / 2
 yr = RA + 2 * 52 + 23                       # Radarr row
 S.arrow([(node_x(1) + NW + 8, yr), (qx, yr), (qx, RB - 5)])
-S.label((node_x(1) + NW + qx) / 2 + 4, yr - 8, "torrent", MUTED, 11, bg=CARD_BG)
+S.label((node_x(1) + NW + qx) / 2 + 4, yr - 8, UI['torrent'], MUTED, 11, bg=CARD_BG)
 # the *arr apps pick finished files up from Torrents and copy them (renamed, sorted) into Media
 ax1, ax2 = node_x(1) + 24, node_x(1) + NW - 24
 S.arrow([(ax1, RA + STACK_H + 7), (ax1, RC - 5)])
-S.text(ax1 + 8, RB + 30, "copy +", 11, MUTED, 500)
-S.text(ax1 + 8, RB + 44, "rename", 11, MUTED, 500)
+S.text(ax1 + 8, RB + 30, UI['copy +'], 11, MUTED, 500)
+S.text(ax1 + 8, RB + 44, UI['rename'], 11, MUTED, 500)
 S.arrow([(ax2, RC - 2), (ax2, RA + STACK_H + 10)])
-S.text(ax2 + 8, RB + 30, "pick up", 11, MUTED, 500)
-S.text(ax2 + 8, RB + 44, "when done", 11, MUTED, 500)
+S.text(ax2 + 8, RB + 30, UI['pick up'], 11, MUTED, 500)
+S.text(ax2 + 8, RB + 44, UI['when done'], 11, MUTED, 500)
 jx = node_x(0) + NW / 2
 S.arrow([(jx, RB - 2), (jx, RS + NH + 5)], dash="4 4")
-S.text(jx + 10, (RS + NH + RB) / 2 + 4, "available", 11, MUTED, 500)
+S.text(jx + 10, (RS + NH + RB) / 2 + 4, UI['available'], 11, MUTED, 500)
 S.arrow([(qx, RB + NH + 2), (qx, RC - 5)])
-S.text(qx + 10, (RB + NH + RC) / 2 + 4, "download", 11, MUTED, 500)
+S.text(qx + 10, (RB + NH + RC) / 2 + 4, UI['download'], 11, MUTED, 500)
 S.arrow([(jx, RC - 2), (jx, RB + NH + 5)])
-S.text(jx + 10, (RB + NH + RC) / 2 + 4, "library", 11, MUTED, 500)
+S.text(jx + 10, (RB + NH + RC) / 2 + 4, UI['library'], 11, MUTED, 500)
 
 # ---------------------------------------------------------------- canvas height
 # H follows the content instead of being a hand-maintained number: lowest panel + margin.
@@ -980,7 +1064,7 @@ _dots = S.p.pop()
 S.p[BG_IDX], S.p[BG_IDX + 1] = S.p.pop(), _dots
 
 OUT.mkdir(exist_ok=True)
-name = f"{SITE.name}-unredacted" if UNREDACTED else SITE.name
+name = "-".join([SITE.name, LANG, "dark"] + (["unredacted"] if UNREDACTED else []))
 svg_path = OUT / f"{name}.svg"
 svg_path.write_text(S.render())
 png_path = OUT / f"{name}.png"

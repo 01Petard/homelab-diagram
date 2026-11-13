@@ -1,0 +1,685 @@
+# 中文版内容；保留英文版的网络拓扑、地址、设备型号及服务标识。
+meta:
+  title: 我的家庭实验室
+  title_redacted: 我的家庭实验室
+  date: 2026 年 11 月
+  watermark: u/goblinmine
+  domain: example.com
+redact:
+  domain: true
+  domain_placeholder: redacted.com
+  ssid_names: true
+vlans:
+- key: '10'
+  tag: VLAN 10
+  name: 内网
+  subnet: 10.0.10.0/24
+  color: '#58a6ff'
+  note: 可信网络 · 可管理其他 VLAN
+- key: '20'
+  tag: VLAN 20
+  name: 服务区
+  subnet: 10.0.20.0/24
+  color: '#f0883e'
+  note: 服务网络 · 不可访问内网、访客及管理网
+- key: '30'
+  tag: VLAN 30
+  name: 访客
+  subnet: 10.0.30.0/24
+  color: '#bc8cff'
+  note: 仅互联网及 NAS 公共共享
+- key: '40'
+  tag: VLAN 40
+  name: 物联网
+  subnet: 10.0.40.0/24
+  color: '#3fb950'
+  note: 仅互联网 · 为 HA 开放特定访问
+- key: '99'
+  tag: VLAN 99
+  name: 管理
+  subnet: 10.0.99.0/24
+  color: '#e3b341'
+  note: 管理界面 · 仅内网与 VPN 可访问
+- key: vpn
+  tag: WireGuard
+  name: VPN
+  subnet: 10.0.50.0/24
+  color: '#39c5cf'
+  note: 分流隧道 · 可访问内网，不转发互联网
+- key: wan
+  tag: Fritzbox
+  name: 外网
+  subnet: 192.168.178.0/24
+  color: '#f85149'
+  note: 非可信网络 · OPNsense 上联 Fritzbox
+internet:
+  speed:
+    down: 600 Mbit/s
+    up: 50 Mbit/s
+  cloud_services:
+  - icon: cloudflare
+    name: Cloudflare
+    note: DNS · *.{domain} · DNS-01 泛域名证书
+  - icon: backblaze
+    name: Backblaze B2
+    note: NAS 数据异地备份
+fritzbox:
+  name: FRITZ!Box
+  type: 运营商路由器
+  model: AVM FRITZ!Box 6660 Cable
+  ip: 192.168.178.1
+  os: FRITZ!OS 8.25
+  lan_ports:
+  - 2.5G
+  - 1G
+  - 1G
+  - 1G
+  - 1G
+  opnsense_port: 1
+opnsense:
+  name: OPNsense
+  type: 路由器 / 防火墙
+  model: 联想瘦客户机
+  os: OPNsense 26.7
+  hw:
+  - icon: glyph-cpu
+    label: CPU
+    value: i3-9100T
+    sub: 4 核 · 4 线程
+  - icon: glyph-ram
+    label: 内存
+    value: 12 GB DDR4
+    sub: 根文件系统使用 ZFS
+  - icon: glyph-nic
+    label: 网络
+    value: 双 2.5G Intel
+    sub: LACP 连接交换机
+  - icon: glyph-nic
+    label: 网络
+    value: 板载 1G
+    sub: WAN 上联 Fritzbox
+  ip: 10.0.99.1
+  internal: opnsense
+  nic_note: LACP · dual 2.5G Intel NIC
+  wan_ip: '.20'
+  services:
+  - icon: adguard
+    name: AdGuard Home
+    note: 为所有 VLAN 提供 DNS
+  - icon: glyph-dhcp
+    name: dnsmasq
+    note: DHCP + *.internal
+  - icon: wireguard
+    name: WireGuard
+    note: wg0 · UDP 51820
+  - icon: glyph-shield
+    name: Suricata IPS
+    note: 出站流量检测
+  - icon: crowdsec
+    name: CrowdSec
+    note: LAPI + pf bouncer
+  - icon: glyph-block
+    name: pf blocklist
+    note: WAN 侧约 2300 个恶意 IP
+switch:
+  name: MikroTik
+  type: 交换机
+  model: MikroTik CRS310-8G+2S+
+  ip: 10.0.99.2
+  internal: mikrotik
+  os: RouterOS 7.20
+  config: 配置为纯二层交换机
+  ports:
+  - name: ether1
+    to: OPNsense
+    tagged:
+    - '10'
+    - '20'
+    - '30'
+    - '40'
+    - '99'
+  - name: ether2
+    to: OPNsense
+    tagged:
+    - '10'
+    - '20'
+    - '30'
+    - '40'
+    - '99'
+  - name: ether3
+    to: MADCAT
+    untagged: '10'
+  - name: ether4
+    to: free
+    tagged:
+    - '10'
+    - '20'
+    - '40'
+    short: 空闲
+  - name: ether5
+    to: JetKVM
+    untagged: '10'
+  - name: ether6
+    to: U7 Lite
+    untagged: '99'
+    tagged:
+    - '10'
+    - '30'
+    - '40'
+  - name: ether7
+    to: SLZB-MR4
+    untagged: '40'
+  - name: ether8
+    to: rescue
+    untagged: '99'
+    short: 救援
+  - name: sfpp1
+    to: MADCAT
+    untagged: '10'
+  - name: sfpp2
+    to: terra
+    tagged:
+    - '10'
+    - '20'
+    - '40'
+    - '99'
+devices:
+  madcat:
+    name: MADCAT
+    type: 工作站
+    model: 游戏电脑
+    os: CachyOS + Windows 11
+    icons:
+    - cachyos
+    - windows
+    vlan: '10'
+    ip: 10.0.10.30 / .31
+    internal: madcat
+  jetkvm:
+    name: JetKVM
+    type: IP-KVM
+    model: JetKVM
+    icons:
+    - jetkvm
+    vlan: '10'
+    ip: 10.0.10.11
+    internal: jetkvm
+  ap:
+    name: U7 Lite
+    type: 无线接入点
+    model: UniFi U7 Lite · Wi-Fi 7
+    icons:
+    - unifi
+    vlan: '99'
+    trunk: true
+    ip: 10.0.99.62
+    internal: u7lite
+  slzb:
+    name: SLZB-MR4
+    type: 协调器
+    model: SMLIGHT SLZB-MR4 · Zigbee + Thread
+    icons:
+    - glyph-antenna
+    vlan: '40'
+    ip: 10.0.40.20
+    internal: slzb-mr4
+ssids:
+- name: Home
+  redacted: 家庭
+  vlan: '10'
+- name: Guest
+  redacted: 访客
+  vlan: '30'
+- name: 物联网
+  redacted: 物联网
+  vlan: '40'
+remote:
+  name: 远程访问
+  note: 手机与笔记本 · WireGuard VPN
+port_forwards:
+- port: 80, 443
+  proto: TCP/UDP
+  to: Traefik
+  what: 所有 *.{domain} 站点
+- port: '22'
+  proto: TCP
+  to: Forgejo
+  what: Git SSH（转发至 :2222）
+- port: '1024'
+  proto: TCP
+  to: TrueNAS
+  what: 仅密钥认证的 SFTP 备份
+- port: '51820'
+  proto: UDP
+  to: WireGuard
+  what: 远程访问 VPN
+- port: '64001'
+  proto: TCP/UDP
+  to: qBittorrent
+  what: 入站对等连接
+- port: 2022, 25560-70, …
+  proto: TCP/UDP
+  to: Pelican Wings
+  what: 游戏服务器与 SFTP
+terra:
+  name: terra
+  type: 服务器
+  model: Proxmox 服务器
+  os: Proxmox VE 9.2
+  ip: 10.0.10.20
+  internal: terra
+  hw:
+  - icon: glyph-cpu
+    label: CPU
+    value: Ryzen 9 9900X
+    sub: 12 核 · 24 线程
+  - icon: glyph-ram
+    label: 内存
+    value: 64 GB DDR5
+    sub: 约 60 GB 可用
+  - icon: glyph-gpu
+    label: GPU
+    value: Radeon iGPU
+    sub: 直通 → Jellyfin（CT 152）
+  - icon: glyph-nic
+    label: 网络
+    value: ConnectX-3 10G
+    sub: SFP+ · 支持 VLAN 的网桥
+  - icon: glyph-ssd
+    label: SSD
+    value: Samsung 980 500 GB
+    sub: NVMe · Proxmox 系统
+  - icon: glyph-ssd
+    label: SSD
+    value: Crucial P5 Plus 2 TB
+    sub: NVMe · 虚拟客户机磁盘
+  - icon: glyph-hdd
+    label: HDD
+    value: 7× Seagate Exos 16 TB
+    sub: SAS + SATA · 直通 → TrueNAS
+  - icon: glyph-ssd
+    label: SSD
+    value: Samsung 970 EVO Plus 1 TB
+    sub: NVMe · 直通 → TrueNAS
+  - icon: glyph-ssd
+    label: SSD
+    value: Samsung 470 128 GB
+    sub: SATA · 直通 → TrueNAS
+  - icon: glyph-ssd
+    label: SSD
+    value: SK hynix 256 GB
+    sub: SATA · 直通 → TrueNAS
+  dmz_groups:
+  - name: 入口与安全
+    guests:
+    - id: 149
+      ip: '.49'
+      name: 入口服务
+      icons:
+      - traefik
+      - authentik
+      note: 反向代理 · 单点登录 · 安全
+      docker: true
+      apps:
+      - icon: traefik
+        name: Traefik
+        host: traefik
+      - icon: authentik
+        name: authentik
+        host: auth
+      - icon: authentik
+        name: LDAP outpost
+        note: 为 Jellyfin 提供 LDAPS
+      - icon: crowdsec
+        name: CrowdSec
+        note: 代理与应用安全 WAF
+      - icon: alloy
+        name: Alloy
+        note: 访问日志 → Loki
+    key: Edge & security
+  - name: 监控
+    guests:
+    - id: 102
+      name: Grafana
+      icons:
+      - grafana
+      note: 仪表盘
+      host: grafana
+      exposure: local
+    - id: 113
+      name: Prometheus
+      icons:
+      - prometheus
+      note: Traefik 指标
+      internal: prometheus
+    - id: 116
+      name: Loki
+      icons:
+      - loki
+      note: 经 Alloy 采集日志
+      internal: loki
+    - id: 120
+      name: OpenSpeedTest
+      icons:
+      - openspeedtest
+      note: 已修正上传测试
+      host: speedtest
+      exposure: public
+    key: Monitoring
+  - name: 媒体与照片
+    guests:
+    - id: 152
+      name: Jellyfin
+      icons:
+      - jellyfin
+      note: 核显转码与播放统计
+      apps:
+      - icon: jellyfin
+        name: Jellyfin
+        host: jellyfin
+      - icon: jellystat
+        name: Jellystat
+        host: jellystat
+    - id: 153
+      name: Seerr
+      icons:
+      - seerr
+      note: 电影与剧集请求
+      host: seerr
+      exposure: public
+    - id: 154
+      ip: '.54'
+      name: '*arr 服务'
+      icons:
+      - sonarr
+      - radarr
+      - prowlarr
+      - bazarr
+      note: 同一 CT 内每个应用独立 Docker 容器
+      docker: true
+      apps:
+      - icon: sonarr
+        name: Sonarr
+        host: sonarr
+      - icon: sonarr
+        name: Sonarr-Ani
+        host: sonarr-ani
+      - icon: radarr
+        name: Radarr
+        host: radarr
+      - icon: prowlarr
+        name: Prowlarr
+        host: prowlarr
+      - icon: bazarr
+        name: Bazarr
+        host: bazarr
+    - id: 140
+      name: qBittorrent
+      icons:
+      - qbittorrent
+      note: VueTorrent UI
+      host: torrent
+      exposure: public
+    - id: 130
+      name: MeTube
+      icons:
+      - metube
+      note: YouTube 下载
+      host: yt
+      exposure: local
+    - id: 158
+      ip: '.58'
+      name: Immich
+      icons:
+      - immich
+      note: 照片库
+      host: immich
+      exposure: public
+    key: Media & photos
+  - name: 效率工具
+    guests:
+    - id: 111
+      name: Paperless-ngx
+      icons:
+      - paperless
+      note: 扫描文档管理
+      host: paperless
+      exposure: public
+    - id: 125
+      name: Stirling PDF
+      icons:
+      - stirling
+      note: PDF 工具
+      host: pdf
+      exposure: public
+    - id: 132
+      name: Tandoor
+      icons:
+      - tandoor
+      note: 食谱
+      host: food
+      exposure: public
+    - id: 103
+      name: Actual Budget
+      icons:
+      - actual
+      note: 财务管理
+      host: actual
+      exposure: public
+    - id: 134
+      name: Open WebUI
+      icons:
+      - openwebui-l
+      - ollama-l
+      note: 本地 AI
+      apps:
+      - icon: openwebui-l
+        name: Open WebUI
+        host: ai
+      - icon: ollama-l
+        name: Ollama
+        note: 本地模型
+    key: Productivity
+  - name: 游戏
+    guests:
+    - id: 100
+      name: Pelican Panel
+      icons:
+      - pelican
+      note: 游戏服务器面板
+      host: pelican
+      exposure: public
+    - id: 101
+      name: Pelican Wings
+      icons:
+      - pelican
+      note: node2 · 运行所有游戏服务器
+      host: node2
+      exposure: public
+    key: Gaming
+  - name: 开发
+    guests:
+    - id: 131
+      name: Forgejo
+      icons:
+      - forgejo
+      note: Git · 公网 SSH :22
+      host: git
+      exposure: public
+    - id: 119
+      name: Forgejo runner
+      icons:
+      - forgejo
+      note: CI / Actions
+      internal: forgejo-runner
+    - id: 118
+      name: Penpot
+      icons:
+      - penpot-l
+      note: 设计与原型
+      host: penpot
+      exposure: public
+    key: Dev
+  - name: 聊天
+    guests:
+    - id: 142
+      name: Matrix
+      icons:
+      - matrix-l
+      note: 聊天服务器
+      apps:
+      - icon: matrix-l
+        name: Synapse
+        host: matrix
+      - icon: cinny
+        name: Cinny
+        note: 网页客户端（同一主机）
+      - icon: matrix-l
+        name: synapse-admin
+        note: /admin · 仅内网
+    - id: 117
+      name: mautrix 桥接
+      icons:
+      - matrix-l
+      - whatsapp
+      note: 聊天桥接 → Matrix
+      docker: true
+      apps:
+      - icon: whatsapp
+        name: WhatsApp
+        note: mautrix-whatsapp
+      - icon: signal
+        name: Signal
+        note: mautrix-signal
+      - icon: discord
+        name: Discord
+        note: mautrix-discord
+    key: Chat
+  media_pipeline:
+    nodes:
+      seerr:
+        icon: seerr
+        name: Seerr
+        ip: '.153'
+        ct: 153
+        sub: 请求
+        host: seerr
+      prowlarr:
+        icon: prowlarr
+        name: Prowlarr
+        ip: '.54'
+        ct: 154
+        sub: 索引器
+        host: prowlarr
+      jellyfin:
+        icon: jellyfin
+        name: Jellyfin
+        ip: '.152'
+        ct: 152
+        sub: 播放 · 核显
+        host: jellyfin
+      qbit:
+        icon: qbittorrent
+        name: qBittorrent
+        ip: '.140'
+        ct: 140
+        sub: 下载
+        host: torrent
+    shares:
+      media:
+        name: 媒体共享
+        pool: Vault · 已用 35.6 / 85.6 TiB
+        mounts: CT 152 · 154
+      torrents:
+        name: 下载共享
+        pool: FasterBoy · 已用 38 / 903 GiB
+        mounts: CT 140 · 154 · 130
+    arrs:
+    - icon: sonarr
+      name: Sonarr
+      ip: '.54'
+      host: sonarr
+    - icon: sonarr
+      name: Sonarr-Ani
+      ip: '.54'
+      host: sonarr-ani
+    - icon: radarr
+      name: Radarr
+      ip: '.54'
+      host: radarr
+  other_guests:
+    truenas:
+      id: 133
+      kind: VM
+      vlan: '10'
+      ip: 10.0.10.10
+      internal: truenas
+      name: TrueNAS SCALE
+      icons:
+      - truenas
+      note: VM 133 · 6 vCPU · 16 GB
+      pools:
+      - name: Vault
+        layout: 7 块 HDD + 2 块 SSD
+        used: 已用 48% · 空闲 44.2 TiB · 可用 85.6 TiB
+        pct: 48
+        groups:
+        - kind: hdd
+          count: 7
+          label: 数据 · RAIDZ1
+          sub: 7× Seagate Exos 16 TB
+          sub2: 可容忍 1 块磁盘故障
+        - kind: ssd
+          count: 2
+          label: 特殊 vdev · 镜像
+          sub: Samsung 470 + SK hynix
+          sub2: 元数据 · 已用 22 / 118 GiB
+      - name: FasterBoy
+        layout: 1 NVMe
+        used: 已用 5% · 空闲 857 GiB · 可用 903 GiB
+        pct: 5
+        groups:
+        - kind: nvme
+          count: 1
+          label: 数据 · 单盘
+          sub: Samsung 970 EVO Plus 1 TB
+          sub2: 无冗余
+      footer: 每小时快照 · 重要数据集同步至 Backblaze B2
+    haos:
+      id: 106
+      kind: VM
+      vlan: '40'
+      ip: 10.0.40.2
+      host: ha
+      name: Home Assistant OS
+      icons:
+      - homeassistant
+      note: VM 106 · 2 vCPU · 4 GB
+      addons:
+      - zigbee2mqtt
+      - mosquitto
+      - thread-l
+      - matter-l
+      - esphome
+      addons_text: Z2M · MQTT · OTBR · Matter · ESPHome
+    unifi:
+      id: 129
+      kind: CT
+      vlan: '99'
+      ip: 10.0.99.53
+      internal: unifi
+      name: UniFi OS Server
+      icons:
+      - unifi
+      note: CT 129 · 管理 U7 Lite
+    bliss:
+      id: 138
+      kind: VM
+      vlan: '10'
+      ip: 10.0.10.155
+      internal: generic-android-x86-64
+      name: BlissOS
+      icons:
+      - android
+      badge: whatsapp
+      note: VM 138 · 为 Matrix 提供 WhatsApp
