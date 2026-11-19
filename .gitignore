@@ -15,3 +15,5 @@ icons/*
 .agents
 .idea
 .vscode
+
+out/
